@@ -67,7 +67,4 @@ flutter:
           weight: 700
 
   assets:
-    - lib/assets/images/welcom2.png
-    - lib/assets/images/need2.png
-    - lib/assets/images/easy2.png
-    - lib/assets/images/logo1.png
+    - lib/assets/images/
