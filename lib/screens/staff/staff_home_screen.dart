@@ -94,27 +94,26 @@ class StaffHomeScreen extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.all(20.0),
               child: GridView.count(
-                crossAxisCount: 2, // زرين في كل صف
+                crossAxisCount: 2,
                 crossAxisSpacing: 20,
                 mainAxisSpacing: 20,
                 children: [
                   _buildMenuCard(context, "نشر واجب", Icons.assignment_outlined, Colors.blue, () {
-                    // Navigator.pushNamed(context, '/publish_assignment');
+                    // Navigator.push(context, MaterialPageRoute(builder: (context) => const PublishAssignmentScreen()));
                   }),
                   _buildMenuCard(context, "إنشاء اختبار", Icons.checklist_rtl_outlined, Colors.indigo, () {
-                    // Navigator.pushNamed(context, '/create_quiz');
+                    // Navigator.push(context, MaterialPageRoute(builder: (context) => const CreateQuizScreen()));
                   }),
                   _buildMenuCard(context, "إرسال إشعار", Icons.notifications_active_outlined, Colors.orange, () {
-                    // Navigator.pushNamed(context, '/send_notification');
+                    // Navigator.push(context, MaterialPageRoute(builder: (context) => const SendNotificationScreen()));
                   }),
                   _buildMenuCard(context, "نشر خبر", Icons.newspaper_outlined, Colors.green, () {
-                    // Navigator.pushNamed(context, '/post_news');
+                    // Navigator.push(context, MaterialPageRoute(builder: (context) => const PostNewsScreen()));
                   }),
                 ],
               ),
             ),
-          ),
-        ],
+          ),        ],
       ),
     );
   }
