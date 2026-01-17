@@ -1,22 +1,23 @@
+import 'package:daleel_naw3ya/screens/staff/staff_Create_Quiz_Screen.dart';
 import 'package:daleel_naw3ya/screens/staff/staff_Profile_Screen.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart'; // ستحتاج لإضافة حزمة intl في pubspec.yaml للتاريخ التلقائي
+import 'package:intl/intl.dart';
 
 class StaffHomeScreen extends StatelessWidget {
   static const routeName = '/Staff_Home';
 
-  // هذه البيانات سيتم تمريرها من صفحة اللوجن أو استدعاؤها من الـ Manager
   final String doctorName;
   final String department;
 
   const StaffHomeScreen({
     super.key,
-    this.doctorName = "د. أحمد علي", // قيم افتراضية للتجربة
+    this.doctorName = "د. أحمد علي",
     this.department = "تكنولوجيا التعليم"
   });
 
   @override
   Widget build(BuildContext context) {
+    // تنسيق التاريخ الحالي تلقائياً باللغة العربية
     String currentDate = DateFormat('EEEE، d MMMM', 'ar').format(DateTime.now());
 
     final Color primaryColor = const Color(0xFF292F91);
@@ -26,7 +27,7 @@ class StaffHomeScreen extends StatelessWidget {
       backgroundColor: const Color(0xFFF3F6FF),
       body: Column(
         children: [
-          // الجزء العلوي (Header)
+          // الجزء العلوي (Header) يحتوي على بيانات الدكتور والتاريخ
           Container(
             padding: const EdgeInsets.only(top: 60, left: 25, right: 25, bottom: 30),
             decoration: BoxDecoration(
@@ -45,9 +46,9 @@ class StaffHomeScreen extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
-                        border: Border.all(color: Colors.white.withOpacity(0.2)),
                         color: Colors.white.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.white.withOpacity(0.2)),
                       ),
                       child: Text(
                         currentDate,
@@ -62,20 +63,21 @@ class StaffHomeScreen extends StatelessWidget {
                             builder: (context) => StaffProfileScreen(
                               doctorName: doctorName,
                               department: department,
-                              onThemeChanged: (bool p1) {  },
+                              onThemeChanged: (bool val) { /* يمكن ربطها بالثيم هنا */ },
                               isDarkMode: false,
-                              onDataChanged: () {  },
+                              onDataChanged: () { },
                             ),
                           ),
                         );
                       },
                       child: const Icon(Icons.person_outline, size: 30, color: Colors.white),
-                    ),                  ],
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 20),
-                Text(
+                const Text(
                   "مرحباً دكتور 👋",
-                  style: const TextStyle(color: Colors.white70, fontSize: 16),
+                  style: TextStyle(color: Colors.white70, fontSize: 16),
                 ),
                 Text(
                   doctorName,
@@ -89,73 +91,93 @@ class StaffHomeScreen extends StatelessWidget {
             ),
           ),
 
-          // شبكة الأزرار (Grid View) تغطي باقي الصفحة
+          // قائمة الأزرار العريضة تحت بعضها
           Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: GridView.count(
-                crossAxisCount: 2,
-                crossAxisSpacing: 20,
-                mainAxisSpacing: 20,
-                children: [
-                  _buildMenuCard(context, "نشر واجب", Icons.assignment_outlined, Colors.blue, () {
-                    // Navigator.push(context, MaterialPageRoute(builder: (context) => const PublishAssignmentScreen()));
-                  }),
-                  _buildMenuCard(context, "إنشاء اختبار", Icons.checklist_rtl_outlined, Colors.indigo, () {
-                    // Navigator.push(context, MaterialPageRoute(builder: (context) => const CreateQuizScreen()));
-                  }),
-                  _buildMenuCard(context, "إرسال إشعار", Icons.notifications_active_outlined, Colors.orange, () {
-                    // Navigator.push(context, MaterialPageRoute(builder: (context) => const SendNotificationScreen()));
-                  }),
-                  _buildMenuCard(context, "نشر خبر", Icons.newspaper_outlined, Colors.green, () {
-                    // Navigator.push(context, MaterialPageRoute(builder: (context) => const PostNewsScreen()));
-                  }),
-                ],
-              ),
+            child: ListView(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+              children: [
+                _buildWideMenuCard(context, "نشر واجب", Icons.assignment_outlined, Colors.blue, () {
+                  // Navigator.push(context, MaterialPageRoute(builder: (context) => const PublishAssignmentPage()));
+                }),
+                _buildWideMenuCard(context, "إنشاء اختبار", Icons.checklist_rtl_outlined, Colors.indigo, () {
+                  // استخدم push بدلاً من pushReplacement لتمكين زر الرجوع
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const CreateQuizScreen()),
+                  );
+                }),
+                _buildWideMenuCard(context, "إرسال إشعار", Icons.notifications_active_outlined, Colors.orange, () {
+                  // Navigator.push(context, MaterialPageRoute(builder: (context) => const SendNotificationPage()));
+                }),
+              ],
             ),
           ),        ],
       ),
     );
   }
 
-  Widget _buildMenuCard(BuildContext context, String title, IconData icon, Color color, VoidCallback onTap) {
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(25),
-          boxShadow: [
-            BoxShadow(
-              color: color.withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, 5),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(15),
-              decoration: BoxDecoration(
+  // دالة بناء الزر العريض الذي يأخذ عرض الصفحة
+  Widget _buildWideMenuCard(BuildContext context, String title, IconData icon, Color color, VoidCallback onTap) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 15),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
                 color: color.withOpacity(0.1),
-                shape: BoxShape.circle,
+                blurRadius: 10,
+                offset: const Offset(0, 4),
               ),
-              child: Icon(icon, size: 40, color: color),
-            ),
-            const SizedBox(height: 15),
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF292F91),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, size: 28, color: color),
               ),
-            ),
-          ],
+              const SizedBox(width: 20),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF292F91),
+                ),
+              ),
+              const Spacer(),
+              Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey.shade400),
+            ],
+          ),
         ),
       ),
+    );
+  }
+}
+
+// صفحة تجريبية لنشر خبر
+class PostNewsScreen extends StatelessWidget {
+  const PostNewsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("نشر خبر جديد"),
+        backgroundColor: const Color(0xFF292F91),
+        foregroundColor: Colors.white,
+      ),
+      body: const Center(child: Text("واجهة نشر الأخبار")),
     );
   }
 }

@@ -1,15 +1,18 @@
-import 'package:daleel_naw3ya/screens/Intro_Screen.dart';
 import 'package:daleel_naw3ya/screens/login_screen.dart';
-import 'package:daleel_naw3ya/screens/splash_screen.dart';
-import 'package:daleel_naw3ya/screens/student_home_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/date_symbol_data_file.dart';
-
-import 'core/app_colors.dart';
+import 'package:intl/date_symbol_data_local.dart'; // السطر الصحيح لتهيئة التاريخ
+// استيراد الصفحات
+import 'package:daleel_naw3ya/screens/splash_screen.dart';
+import 'package:daleel_naw3ya/screens/Intro_Screen.dart';
+import 'package:daleel_naw3ya/screens/student_home_screen.dart';
+import 'package:daleel_naw3ya/screens/staff/staff_home_screen.dart'; // تأكد من استيراد صفحة الدكتور
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await initializeDateFormatting('ar', 'en');
+
+  // تهيئة التاريخ العربي بشكل صحيح لمنع الـ PathNotFoundException
+  await initializeDateFormatting('ar', null);
+
   runApp(const MyApp());
 }
 
@@ -40,21 +43,25 @@ class _MyAppState extends State<MyApp> {
         useMaterial3: true,
         fontFamily: 'Cairo',
         brightness: Brightness.light,
-        scaffoldBackgroundColor: AppColors.lightBackground,
-        primaryColor: AppColors.primaryNavy,
+        scaffoldBackgroundColor: const Color(0xFFF8FAFC),
+        primaryColor: const Color(0xFF292F91),
       ),
 
       darkTheme: ThemeData(
         useMaterial3: true,
         fontFamily: 'Cairo',
         brightness: Brightness.dark,
-        scaffoldBackgroundColor: AppColors.darkBackground,
-        primaryColor: AppColors.primaryNavy,
+        scaffoldBackgroundColor: const Color(0xFF121212),
+        primaryColor: const Color(0xFF292F91),
       ),
 
       initialRoute: SplashScreen.routeName,
 
       onGenerateRoute: (settings) {
+        // إدارة المسارات (Navigation Management)
+        if (settings.name == SplashScreen.routeName) {
+          return MaterialPageRoute(builder: (context) => const SplashScreen());
+        }
         if (settings.name == IntroScreen.routeName) {
           return MaterialPageRoute(builder: (context) => const IntroScreen());
         }
@@ -62,6 +69,7 @@ class _MyAppState extends State<MyApp> {
           return MaterialPageRoute(builder: (context) => const DynamicSignupScreen());
         }
 
+        // مسار الطالب
         if (settings.name == '/home') {
           return MaterialPageRoute(
             builder: (context) => StudentHomeScreen(
@@ -70,6 +78,18 @@ class _MyAppState extends State<MyApp> {
             ),
           );
         }
+
+        // إضافة مسار الدكتور هنا ليعمل زر الـ Signup بشكل صحيح
+        if (settings.name == StaffHomeScreen.routeName) {
+          final args = settings.arguments as Map<String, dynamic>?;
+          return MaterialPageRoute(
+            builder: (context) => StaffHomeScreen(
+              doctorName: args?['doctorName'] ?? "دكتور",
+              department: args?['department'] ?? "عام",
+            ),
+          );
+        }
+
         return MaterialPageRoute(builder: (context) => const SplashScreen());
       },
     );
