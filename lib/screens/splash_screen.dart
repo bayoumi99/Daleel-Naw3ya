@@ -18,7 +18,7 @@ class _SplashScreenState extends State<SplashScreen> {
     super.initState();
     FlutterNativeSplash.remove();
 
-    Future.delayed(const Duration(seconds: 4), () {
+    Future.delayed(const Duration(seconds: 6), () {
       if (mounted) Navigator.pushReplacementNamed(context, IntroScreen.routeName);
     });
   }
@@ -35,44 +35,37 @@ class _SplashScreenState extends State<SplashScreen> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFF292F91), Color(0xFF4CA8DD)],
+            colors: [
+              Color(0xFF0D1B8E), // اللون الكحلي العميق
+              Color(0xFF1B4B91), // درجة وسيطة لضمان نعومة التدرج
+              Color(0xFF5BAED4), // تم تغميق اللون الفاتح قليلاً (بدلاً من 75C8F1)
+            ],
+            // ضبط الـ stops لتوزيع اللون الغامق على مساحة أكبر
+            stops: [0.0, 0.6, 1.0],
           ),
         ),
         child: Stack(
           alignment: Alignment.center,
           children: [
-            Image.asset(
-              "lib/assets/images/logo1.png",
-              width: size.width * 0.4,
+            // اللوجو الرئيسي في المنتصف
+            FadeInDown(
+              duration: const Duration(milliseconds: 1500),
+              child: Image.asset(
+                "lib/assets/images/logo1.png",
+                width: size.width * 0.7,
+              ),
             ),
+
+            // صورة المطور في الأسفل
             Positioned(
-              bottom: size.height * 0.12,
-              child: Column(
-                children: [
-                  FadeInUp(
-                    delay: const Duration(milliseconds: 200),
-                    child: const Text(
-                      "Developed by",
-                      style: TextStyle(color: Colors.white70, fontSize: 14),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  FadeInUp(
-                    delay: const Duration(milliseconds: 600),
-                    child: const Text(
-                      "Mostafa Elfekry",
-                      style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  const SizedBox(height: 5),
-                  FadeInUp(
-                    delay: const Duration(milliseconds: 1000),
-                    child: const Text(
-                      "Mohamed Biyoumi",
-                      style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ],
+              bottom: size.height * 0.04,
+              child: FadeInUp(
+                delay: const Duration(milliseconds: 1000),
+                child: Image.asset(
+                  "lib/assets/images/codeare.png",
+                  width: size.width * 0.42,
+                  fit: BoxFit.contain,
+                ),
               ),
             ),
           ],

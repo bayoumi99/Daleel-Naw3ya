@@ -1,5 +1,7 @@
 import 'package:daleel_naw3ya/screens/staff/staff_Create_Quiz_Screen.dart';
 import 'package:daleel_naw3ya/screens/staff/staff_Profile_Screen.dart';
+import 'package:daleel_naw3ya/screens/staff/staff_Publish_Assignment_Screen.dart';
+import 'package:daleel_naw3ya/screens/staff/staff_Send_Notification_Screen.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -97,7 +99,7 @@ class StaffHomeScreen extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
               children: [
                 _buildWideMenuCard(context, "نشر واجب", Icons.assignment_outlined, Colors.blue, () {
-                  // Navigator.push(context, MaterialPageRoute(builder: (context) => const PublishAssignmentPage()));
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const AssignmentsManagementScreen(isDarkMode:false ,)));
                 }),
                 _buildWideMenuCard(context, "إنشاء اختبار", Icons.checklist_rtl_outlined, Colors.indigo, () {
                   // استخدم push بدلاً من pushReplacement لتمكين زر الرجوع
@@ -107,7 +109,7 @@ class StaffHomeScreen extends StatelessWidget {
                   );
                 }),
                 _buildWideMenuCard(context, "إرسال إشعار", Icons.notifications_active_outlined, Colors.orange, () {
-                  // Navigator.push(context, MaterialPageRoute(builder: (context) => const SendNotificationPage()));
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const NotificationsManagementScreen(isDarkMode: false,)));
                 }),
               ],
             ),
