@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1001072464576",
+    "project_id": "daleel-naw3ya",
+    "storage_bucket": "daleel-naw3ya.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1001072464576:android:8c00559397bcb57a391325",
+        "android_client_info": {
+          "package_name": "com.example.daleel_naw3ya"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDyw_PZfZMGfE0Vc3qXFIYAsnO5kN3E944"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

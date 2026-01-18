@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart'; // 1. استيراد المكتبة
+import 'package:firebase_auth/firebase_auth.dart';    // 2. استيراد الصلاحيات
 import 'package:flutter/material.dart';
 
 class CreateQuizScreen extends StatefulWidget {
@@ -10,6 +12,7 @@ class CreateQuizScreen extends StatefulWidget {
 
 class _CreateQuizScreenState extends State<CreateQuizScreen> {
   final _formKey = GlobalKey<FormState>();
+  bool _isLoading = false; // لمؤشر التحميل عند النشر
 
   // إعدادات الاختبار
   double _duration = 30;
@@ -24,6 +27,48 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
   // قائمة الأسئلة
   List<Map<String, dynamic>> _questions = [];
 
+  // --- دالة النشر إلى Firebase ---
+  Future<void> _submitQuiz() async {
+    if (_questions.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("برجاء إضافة سؤال واحد على الأقل")),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      // الحصول على الـ UID الخاص بالدكتور الحالي
+      String userId = FirebaseAuth.instance.currentUser?.uid ?? "unknown_doctor";
+
+      // رفع البيانات لمجموعة Quizzes
+      await FirebaseFirestore.instance.collection('Quizzes').add({
+        'title': "اختبار $_selectedDepartment", // يمكنك إضافة حقل لعنوان الاختبار
+        'department': _selectedDepartment,
+        'level': _selectedLevel,
+        'specialization': _selectedSpecialization,
+        'duration': _duration.toInt(),
+        'questions': _questions, // قائمة الأسئلة التي أنشأتها
+        'createdAt': FieldValue.serverTimestamp(),
+        'createdBy': userId,
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("تم نشر الاختبار بنجاح ✅")),
+        );
+        Navigator.pop(context); // العودة للشاشة الرئيسية
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("حدث خطأ أثناء النشر: $e")),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
   void _addQuestion(String type) {
     setState(() {
       if (type == 'mcq') {
@@ -31,13 +76,13 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
           'type': 'mcq',
           'question': '',
           'options': ['', '', '', ''],
-          'answer': 0 // مؤشر الإجابة الصحيحة (0-3)
+          'answer': 0
         });
       } else if (type == 'true_false') {
         _questions.add({
           'type': 'true_false',
           'question': '',
-          'answer': true // الإجابة الصحيحة (true/false)
+          'answer': true
         });
       }
     });
@@ -53,14 +98,13 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
         backgroundColor: const Color(0xFF292F91),
         foregroundColor: Colors.white,
       ),
-      body: Form(
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Form(
         key: _formKey,
         child: Column(
           children: [
-            // قسم اختيار الفئة المستهدفة والوقت
             _buildHeaderSettings(),
-
-            // قائمة الأسئلة
             Expanded(
               child: _questions.isEmpty
                   ? _buildEmptyState()
@@ -70,8 +114,6 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
                 itemBuilder: (context, index) => _buildQuestionCard(index),
               ),
             ),
-
-            // أزرار إضافة سؤال جديد
             _buildActionButtons(),
           ],
         ),
@@ -80,6 +122,7 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
     );
   }
 
+  // (نفس ويدجت _buildHeaderSettings السابقة بدون تغيير)
   Widget _buildHeaderSettings() {
     return Container(
       padding: const EdgeInsets.all(15),
@@ -147,6 +190,7 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
     var q = _questions[index];
     return Card(
       margin: const EdgeInsets.only(bottom: 20),
+      elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       child: Padding(
         padding: const EdgeInsets.all(15),
@@ -263,18 +307,15 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
       padding: const EdgeInsets.all(20),
       color: Colors.white,
       child: ElevatedButton(
-        onPressed: () {
-          // هنا يتم الربط مع Firebase
-          String msg = "تم نشر الاختبار لـ $_selectedLevel";
-          if (_selectedSpecialization != "عام") msg += " ($_selectedSpecialization)";
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
-        },
+        onPressed: _isLoading ? null : _submitQuiz, // استدعاء دالة Firebase
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFF292F91),
           minimumSize: const Size(double.infinity, 55),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
-        child: const Text("نشر الاختبار للطلاب", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+        child: _isLoading
+            ? const CircularProgressIndicator(color: Colors.white)
+            : const Text("نشر الاختبار للطلاب", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
       ),
     );
   }

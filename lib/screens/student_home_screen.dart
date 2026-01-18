@@ -1,4 +1,5 @@
-
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:persistent_bottom_nav_bar/persistent_bottom_nav_bar.dart';
@@ -9,7 +10,6 @@ import '../tap/profile_tab.dart';
 import '../tap/schedule_tab.dart';
 import '../tap/tasks_tab.dart';
 import 'CollegeGuideScreen/CollegeGuideScreen.dart';
-
 
 class StudentHomeScreen extends StatefulWidget {
   final bool isDarkMode;
@@ -38,8 +38,8 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
       context,
       controller: _controller,
       screens: [
-        const Scaffold(body: Center(child: Text("الإشعارات"))),
-        const Scaffold(body: Center(child: Text("الاختبارات"))),
+        _buildNotificationsTab(), // الكود الجديد للإشعارات
+        _buildQuizzesTab(),       // الكود الجديد للاختبارات
         const AssignmentsTab(),
         _buildDashboard(),
         const ScheduleTab(),
@@ -49,32 +49,115 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
       backgroundColor: widget.isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
       navBarStyle: NavBarStyle.style7,
       onItemSelected: (index) {
-        if (index == 3) setState(() {}); // تحديث الهوم عند الضغط عليها
+        if (index == 3) setState(() {});
       },
     );
   }
 
-  List<PersistentBottomNavBarItem> _navBarsItems() {
-    return [
-      _item(Icons.notifications_none, "تنبيهات"),
-      _item(Icons.quiz_outlined, "اختبارات"),
-      _item(Icons.assignment_outlined, "تكاليف"),
-      _item(Icons.home, "الرئيسية"),
-      _item(Icons.calendar_month_outlined, "جدول"),
-      _item(Icons.person_outline, "شخصي"),
-    ];
-  }
+  // --- 1. شاشة التنبيهات المرتبطة بـ Firebase ---
+  Widget _buildNotificationsTab() {
+    return Scaffold(
+      backgroundColor: widget.isDarkMode ? const Color(0xFF121212) : const Color(0xFFF3F6FF),
+      appBar: AppBar(
+        title: const Text("التنبيهات", style: TextStyle(fontWeight: FontWeight.bold)),
+        centerTitle: true,
+        backgroundColor: widget.isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+        foregroundColor: widget.isDarkMode ? Colors.white : Colors.black,
+      ),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('Notifications')
+            .where('target', whereIn: [StudentManager().level, 'جميع السنوات'])
+            .orderBy('timestamp', descending: true)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+          var docs = snapshot.data!.docs;
+          if (docs.isEmpty) return _buildEmptyStateCustom("لا توShort الإشعارات حالياً");
 
-  PersistentBottomNavBarItem _item(IconData icon, String title) {
-    return PersistentBottomNavBarItem(
-      icon: Icon(icon),
-      title: title,
-      activeColorPrimary: AppColors.primaryNavy,
-      activeColorSecondary: Colors.white,
-      inactiveColorPrimary: Colors.grey.shade400,
+          return ListView.builder(
+            padding: const EdgeInsets.all(15),
+            itemCount: docs.length,
+            itemBuilder: (context, index) {
+              var data = docs[index].data() as Map<String, dynamic>;
+              return Card(
+                elevation: 2,
+                margin: const EdgeInsets.only(bottom: 12),
+                color: widget.isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                child: ListTile(
+                  leading: Icon(Icons.notifications_active, color: data['isUrgent'] == true ? Colors.red : Colors.blue),
+                  title: Text(data['title'], textAlign: TextAlign.right, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: Text(data['body'], textAlign: TextAlign.right),
+                ),
+              );
+            },
+          );
+        },
+      ),
     );
   }
 
+  // --- 2. شاشة الاختبارات المرتبطة بـ Firebase ---
+  Widget _buildQuizzesTab() {
+    return Scaffold(
+      backgroundColor: widget.isDarkMode ? const Color(0xFF121212) : const Color(0xFFF3F6FF),
+      appBar: AppBar(
+        title: const Text("الاختبارات المتاحة", style: TextStyle(fontWeight: FontWeight.bold)),
+        centerTitle: true,
+        backgroundColor: widget.isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+        foregroundColor: widget.isDarkMode ? Colors.white : Colors.black,
+      ),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('Quizzes')
+            .where('level', isEqualTo: StudentManager().level)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+          var docs = snapshot.data!.docs;
+          if (docs.isEmpty) return _buildEmptyStateCustom("لا توجد اختبارات لفرقتك حالياً");
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(15),
+            itemCount: docs.length,
+            itemBuilder: (context, index) {
+              var quiz = docs[index].data() as Map<String, dynamic>;
+              return Container(
+                margin: const EdgeInsets.only(bottom: 15),
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: widget.isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  border: const Border(right: BorderSide(color: Colors.orange, width: 6)),
+                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
+                ),
+                child: Row(
+                  children: [
+                    ElevatedButton(
+                      onPressed: () {}, // سيتم برمجة صفحة الحل لاحقاً
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+                      child: const Text("دخول", style: TextStyle(color: Colors.white)),
+                    ),
+                    const Spacer(),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(quiz['title'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                        Text("مدة الاختبار: ${quiz['duration'] ?? '30'} دقيقة", style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                      ],
+                    ),
+                  ],
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  // --- 3. تعديل الـ Dashboard لجلب أرقام حقيقية ---
   Widget _buildDashboard() {
     String formattedDate = DateFormat('EEEE، d MMMM', 'ar').format(DateTime.now());
     List<Map<String, String>> todayLectures = StudentManager().getTodayLectures();
@@ -115,6 +198,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
                       _buildStatCard("محاضرات اليوم", todayLectures.length.toString()),
+                      // سنترك هذه ثابتة حالياً أو نربطها بـ StreamBuilder لاحقاً
                       _buildStatCard("الواجبات", "3"),
                       _buildStatCard("الاختبارات", "2"),
                     ],
@@ -122,12 +206,8 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                 ],
               ),
             ),
-
-            // --- الزرار الجديد هنا ---
             _buildGuideButton(),
-
             _buildSectionHeader("جدول اليوم"),
-
             if (todayLectures.isEmpty)
               _buildEmptyState()
             else
@@ -142,11 +222,40 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                   )).toList(),
                 ),
               ),
-
             const SizedBox(height: 20),
           ],
         ),
       ),
+    );
+  }
+
+  // --- الدوال المساعدة (UI Helpers) ---
+
+  Widget _buildEmptyStateCustom(String message) {
+    return Center(child: Text(message, style: const TextStyle(color: Colors.grey)));
+  }
+
+  // بقية الدوال (navBarsItems, _item, _buildGuideButton, _buildEmptyState, _buildInfoCard, _buildStatCard, _buildSectionHeader)
+  // تبقى كما هي في كودك الأصلي...
+
+  List<PersistentBottomNavBarItem> _navBarsItems() {
+    return [
+      _item(Icons.notifications_none, "تنبيهات"),
+      _item(Icons.quiz_outlined, "اختبارات"),
+      _item(Icons.assignment_outlined, "تكاليف"),
+      _item(Icons.home, "الرئيسية"),
+      _item(Icons.calendar_month_outlined, "جدول"),
+      _item(Icons.person_outline, "شخصي"),
+    ];
+  }
+
+  PersistentBottomNavBarItem _item(IconData icon, String title) {
+    return PersistentBottomNavBarItem(
+      icon: Icon(icon),
+      title: title,
+      activeColorPrimary: AppColors.primaryNavy,
+      activeColorSecondary: Colors.white,
+      inactiveColorPrimary: Colors.grey.shade400,
     );
   }
 
@@ -155,39 +264,21 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
       child: InkWell(
         onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => CollegeGuideScreen(isDarkMode: widget.isDarkMode),
-            ),
-          );
+          Navigator.push(context, MaterialPageRoute(builder: (context) => CollegeGuideScreen(isDarkMode: widget.isDarkMode)));
         },
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
           decoration: BoxDecoration(
             color: widget.isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
             borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(widget.isDarkMode ? 0.3 : 0.05),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(widget.isDarkMode ? 0.3 : 0.05), blurRadius: 10, offset: const Offset(0, 4))],
             border: Border.all(color: widget.isDarkMode ? Colors.white10 : Colors.grey.shade200),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Icon(Icons.menu_book_rounded, color: widget.isDarkMode ? Colors.blueAccent : AppColors.primaryNavy),
-              Text(
-                "دليل نوعية",
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: widget.isDarkMode ? Colors.white : AppColors.primaryNavy,
-                ),
-              ),
+              Text("دليل نوعية", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: widget.isDarkMode ? Colors.white : AppColors.primaryNavy)),
             ],
           ),
         ),
@@ -200,18 +291,8 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
       padding: const EdgeInsets.all(30),
       width: double.infinity,
-      decoration: BoxDecoration(
-          color: widget.isDarkMode ? Colors.white.withOpacity(0.05) : Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: widget.isDarkMode ? Colors.white10 : Colors.grey.shade200)
-      ),
-      child: Column(
-        children: [
-          Icon(Icons.event_available, size: 50, color: Colors.grey.withOpacity(0.5)),
-          const SizedBox(height: 10),
-          const Text("لا توجد محاضرات مجدولة لهذا اليوم", style: TextStyle(color: Colors.grey, fontWeight: FontWeight.w500)),
-        ],
-      ),
+      decoration: BoxDecoration(color: widget.isDarkMode ? Colors.white.withOpacity(0.05) : Colors.white, borderRadius: BorderRadius.circular(20), border: Border.all(color: widget.isDarkMode ? Colors.white10 : Colors.grey.shade200)),
+      child: Column(children: [Icon(Icons.event_available, size: 50, color: Colors.grey.withOpacity(0.5)), const SizedBox(height: 10), const Text("لا توجد محاضرات مجدولة لهذا اليوم", style: TextStyle(color: Colors.grey, fontWeight: FontWeight.w500))]),
     );
   }
 
@@ -223,24 +304,12 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
         borderRadius: BorderRadius.circular(25),
-        border: Border(
-            right: BorderSide(
-                color: isDark ? AppColors.primaryNavy.withOpacity(0.5) : AppColors.primaryNavy,
-                width: 6
-            )
-        ),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(isDark ? 0.3 : 0.06), blurRadius: 15, offset: const Offset(0, 4))
-        ],
+        border: Border(right: BorderSide(color: isDark ? AppColors.primaryNavy.withOpacity(0.5) : AppColors.primaryNavy, width: 6)),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(isDark ? 0.3 : 0.06), blurRadius: 15, offset: const Offset(0, 4))],
       ),
       child: Row(
         children: [
-          Column(
-            children: [
-              Icon(Icons.access_time, size: 20, color: isDark ? Colors.blueAccent : AppColors.primaryNavy),
-              Text(time, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: isDark ? Colors.white70 : Colors.black87)),
-            ],
-          ),
+          Column(children: [Icon(Icons.access_time, size: 20, color: isDark ? Colors.blueAccent : AppColors.primaryNavy), Text(time, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: isDark ? Colors.white70 : Colors.black87))]),
           const Spacer(),
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,

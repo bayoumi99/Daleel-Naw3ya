@@ -1,17 +1,23 @@
 import 'package:daleel_naw3ya/screens/login_screen.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/date_symbol_data_local.dart'; // السطر الصحيح لتهيئة التاريخ
 // استيراد الصفحات
 import 'package:daleel_naw3ya/screens/splash_screen.dart';
 import 'package:daleel_naw3ya/screens/Intro_Screen.dart';
 import 'package:daleel_naw3ya/screens/student_home_screen.dart';
-import 'package:daleel_naw3ya/screens/staff/staff_home_screen.dart'; // تأكد من استيراد صفحة الدكتور
+import 'package:daleel_naw3ya/screens/staff/staff_home_screen.dart';
+
+import 'firebase_options.dart'; // تأكد من استيراد صفحة الدكتور
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // تهيئة التاريخ العربي بشكل صحيح لمنع الـ PathNotFoundException
   await initializeDateFormatting('ar', null);
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
 
   runApp(const MyApp());
 }
