@@ -102,6 +102,8 @@ class _DynamicSignupScreenState extends State<DynamicSignupScreen> {
               builder: (context) => StaffHomeScreen(
                 doctorName: _nameController.text.trim(),
                 department: _deptNames[_selectedDept!] ?? '',
+                isDarkMode: false,
+                onThemeChanged: (bool p1) {  },
               ),
             ),
                 (route) => false,

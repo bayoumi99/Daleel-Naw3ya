@@ -1,15 +1,71 @@
-import 'package:cloud_firestore/cloud_firestore.dart'; // إضافة مكتبة Firestore
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:daleel_naw3ya/screens/staff/staff_Create_Quiz_Screen.dart';
 import 'package:daleel_naw3ya/screens/staff/staff_Profile_Screen.dart';
 import 'package:daleel_naw3ya/screens/staff/staff_Publish_Assignment_Screen.dart';
 import 'package:daleel_naw3ya/screens/staff/staff_Send_Notification_Screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-class StaffHomeScreen extends StatelessWidget {
+
+
+class StaffHomeScreen extends StatefulWidget {
   static const routeName = '/Staff_Home';
 
-  const StaffHomeScreen({super.key, required String doctorName, required String department});
+  final bool isDarkMode;
+  final Function(bool) onThemeChanged;
+
+
+  const StaffHomeScreen({
+    super.key,
+    required this.isDarkMode,
+    required this.onThemeChanged, required String doctorName, required String department,
+  });
+
+  @override
+  State<StaffHomeScreen> createState() => _StaffHomeScreenState();
+}
+
+class _StaffHomeScreenState extends State<StaffHomeScreen> {
+  Map<String, dynamic>? doctorData;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchDoctorData();
+  }
+
+  // دالة جلب البيانات مع حماية من التحميل اللانهائي
+  Future<void> _fetchDoctorData() async {
+    if (!mounted) return;
+    try {
+      User? user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        DocumentSnapshot doc = await FirebaseFirestore.instance
+            .collection('Users')
+            .doc(user.uid)
+            .get();
+
+        if (doc.exists && doc.data() != null) {
+          if (mounted) {
+            setState(() {
+              doctorData = doc.data() as Map<String, dynamic>;
+              _isLoading = false;
+            });
+          }
+        } else {
+          debugPrint("وثيقة الدكتور غير موجودة");
+          if (mounted) setState(() => _isLoading = false);
+        }
+      } else {
+        if (mounted) setState(() => _isLoading = false);
+      }
+    } catch (e) {
+      debugPrint("خطأ في جلب بيانات الدكتور: $e");
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -17,151 +73,142 @@ class StaffHomeScreen extends StatelessWidget {
     final Color primaryColor = const Color(0xFF292F91);
     final Color accentColor = const Color(0xFF4CA8DD);
 
+    // الألوان بناءً على الوضع (ليلي/فاتح)
+    final scaffoldBg = widget.isDarkMode ? const Color(0xFF121212) : const Color(0xFFF3F6FF);
+    final cardBg = widget.isDarkMode ? const Color(0xFF1E1E1E) : Colors.white;
+    final textColor = widget.isDarkMode ? Colors.white : const Color(0xFF292F91);
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F6FF),
-      // استخدمنا StreamBuilder لجعل البيانات تتحدث تلقائياً إذا غيرتها في Firebase
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('Users')
-            .where('role', isEqualTo: 'doctor') // جلب المستخدم اللي رتبته دكتور
-            .limit(1)
-            .snapshots(),
-        builder: (context, snapshot) {
-          // حالة التحميل
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
+      backgroundColor: scaffoldBg,
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : RefreshIndicator(
+        onRefresh: _fetchDoctorData,
+        child: Column(
+          children: [
+            // الهيدر (الجزء العلوي)
+            _buildHeader(currentDate, primaryColor, accentColor),
 
-          // جلب البيانات من أول مستند موجود في المجموعة
-          var doctorData = snapshot.data!.docs.first.data() as Map<String, dynamic>;
-
-          // استخراج القيم من الخانات (Value) التي ملأتها في Firebase
-          String nameFromDb = doctorData['name'] ?? "غير معرف";
-          String deptFromDb = doctorData['department'] ?? "غير معرف";
-
-          return Column(
-            children: [
-              // الهيدر المحدث ببيانات Firebase
-              Container(
-                padding: const EdgeInsets.only(top: 60, left: 20, right: 20, bottom: 35),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [primaryColor, accentColor],
-                    begin: Alignment.topRight,
-                    end: Alignment.bottomLeft,
+            // قائمة المهام
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+                children: [
+                  _buildWideMenuCard(
+                    "نشر واجب دراسي",
+                    Icons.assignment_add,
+                    Colors.blue.shade700,
+                    cardBg,
+                    textColor,
+                        () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => AssignmentsManagementScreen(isDarkMode: widget.isDarkMode)),
+                    ),
                   ),
-                  borderRadius: const BorderRadius.only(
-                    bottomLeft: Radius.circular(35),
-                    bottomRight: Radius.circular(35),
+                  _buildWideMenuCard(
+                    "إنشاء اختبار إلكتروني",
+                    Icons.quiz_outlined,
+                    Colors.indigo.shade700,
+                    cardBg,
+                    textColor,
+                        () => Navigator.push(context, MaterialPageRoute(builder: (context) => const CreateQuizScreen())),
                   ),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // اليسار: الأيقونة والتاريخ
-                    Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        InkWell(
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => StaffProfileScreen(
-                                doctorName: nameFromDb,
-                                department: deptFromDb,
-                                onThemeChanged: (bool val) {},
-                                isDarkMode: false,
-                                onDataChanged: () {},
-                              ),
-                            ),
-                          ),
-                          child: Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white.withOpacity(0.1), width: 1.5),
-                            ),
-                            child: const Icon(Icons.person_rounded, size: 38, color: Colors.white),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            currentDate,
-                            style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                      ],
+                  _buildWideMenuCard(
+                    "إرسال إشعار للطلاب",
+                    Icons.campaign_outlined,
+                    Colors.orange.shade800,
+                    cardBg,
+                    textColor,
+                        () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => NotificationsManagementScreen(isDarkMode: widget.isDarkMode)),
                     ),
-
-                    // اليمين: الترحيب + الاسم والقسم من Firebase
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          const Text("مرحباً دكتور 👋", style: TextStyle(color: Colors.white70, fontSize: 15)),
-                          const SizedBox(height: 4),
-                          Text(
-                            nameFromDb, // القيمة من Firebase
-                            textAlign: Radius.zero == null ? TextAlign.right : TextAlign.right,
-                            style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            "قسم $deptFromDb", // القيمة من Firebase
-                            style: const TextStyle(color: Colors.white70, fontSize: 13),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-
-              // قائمة الأزرار
-              Expanded(
-                child: ListView(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-                  children: [
-                    _buildWideMenuCard(
-                      context,
-                      "نشر واجب دراسي",
-                      Icons.assignment_add,
-                      Colors.blue.shade700,
-                          () => Navigator.push(context, MaterialPageRoute(builder: (context) => const AssignmentsManagementScreen(isDarkMode: false))),
-                    ),
-                    _buildWideMenuCard(
-                      context,
-                      "إنشاء اختبار إلكتروني",
-                      Icons.quiz_outlined,
-                      Colors.indigo.shade700,
-                          () => Navigator.push(context, MaterialPageRoute(builder: (context) => const CreateQuizScreen())),
-                    ),
-                    _buildWideMenuCard(
-                      context,
-                      "إرسال إشعار للطلاب",
-                      Icons.campaign_outlined,
-                      Colors.orange.shade800,
-                          () => Navigator.push(context, MaterialPageRoute(builder: (context) => const NotificationsManagementScreen(isDarkMode: false))),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          );
-        },
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildWideMenuCard(BuildContext context, String title, IconData icon, Color color, VoidCallback onTap) {
+  Widget _buildHeader(String currentDate, Color primaryColor, Color accentColor) {
+    return Container(
+      padding: const EdgeInsets.only(top: 60, left: 20, right: 20, bottom: 35),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [primaryColor, accentColor],
+          begin: Alignment.topRight,
+          end: Alignment.bottomLeft,
+        ),
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(35),
+          bottomRight: Radius.circular(35),
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          // أيقونة البروفايل والتاريخ
+          Column(
+            children: [
+              InkWell(
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => StaffProfileScreen(
+                      doctorName: doctorData?['name'] ?? "",
+                      department: doctorData?['department'] ?? "",
+                      onThemeChanged: widget.onThemeChanged,
+                      isDarkMode: widget.isDarkMode,
+                        onDataChanged: () {
+                          _fetchDoctorData();
+                        }
+                        ),
+                  ),
+                ),
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.person_rounded, size: 38, color: Colors.white),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                currentDate,
+                style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+
+          // بيانات الدكتور
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                const Text("مرحباً دكتور 👋", style: TextStyle(color: Colors.white70, fontSize: 15)),
+                Text(
+                  doctorData?['name'] ?? "جاري التحميل...",
+                  style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.right,
+                ),
+                Text(
+                  "قسم ${doctorData?['department'] ?? ''}",
+                  style: const TextStyle(color: Colors.white70, fontSize: 13),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWideMenuCard(String title, IconData icon, Color iconColor, Color cardBg, Color textColor, VoidCallback onTap) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       child: InkWell(
@@ -170,23 +217,23 @@ class StaffHomeScreen extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: cardBg,
             borderRadius: BorderRadius.circular(22),
             boxShadow: [
-              BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 12, offset: const Offset(0, 4)),
+              BoxShadow(color: Colors.black.withOpacity(widget.isDarkMode ? 0.2 : 0.04), blurRadius: 12, offset: const Offset(0, 4)),
             ],
           ),
           child: Row(
             children: [
               Container(
                 padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle),
-                child: Icon(icon, size: 26, color: color),
+                decoration: BoxDecoration(color: iconColor.withOpacity(0.1), shape: BoxShape.circle),
+                child: Icon(icon, size: 26, color: iconColor),
               ),
               const SizedBox(width: 18),
-              Text(title, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Color(0xFF292F91))),
+              Text(title, style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: textColor)),
               const Spacer(),
-              Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Colors.grey.shade300),
+              Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Colors.grey.shade400),
             ],
           ),
         ),

@@ -92,6 +92,8 @@ class _MyAppState extends State<MyApp> {
             builder: (context) => StaffHomeScreen(
               doctorName: args?['doctorName'] ?? "دكتور",
               department: args?['department'] ?? "عام",
+              isDarkMode: _themeMode == ThemeMode.dark,
+              onThemeChanged: (bool p1) {  },
             ),
           );
         }
