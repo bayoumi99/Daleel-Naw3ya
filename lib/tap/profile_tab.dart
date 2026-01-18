@@ -295,23 +295,49 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildThemeSwitchTile() {
     return Card(
       elevation: 0,
+      // تغيير لون الكارت بناءً على الوضع
       color: widget.isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
       shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
-          side: BorderSide(color: widget.isDarkMode ? Colors.white10 : Colors.grey.shade200)
-      ),
+          side: BorderSide(
+            color: widget.isDarkMode ? Colors.white10 : Colors.grey.shade200,
+          )),
       child: ListTile(
-        title: Text("المظهر", textAlign: TextAlign.right, style: TextStyle(color: widget.isDarkMode ? Colors.white : Colors.black, fontWeight: FontWeight.bold)),
+        // النصوص
+        title: Text(
+          "المظهر",
+          textAlign: TextAlign.right,
+          style: TextStyle(
+            color: widget.isDarkMode ? Colors.white : Colors.black,
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+          ),
+        ),
+        subtitle: Text(
+          widget.isDarkMode ? "الوضع الليلي" : "الوضع الفاتح",
+          textAlign: TextAlign.right,
+          style: TextStyle(
+            color: widget.isDarkMode ? Colors.white54 : Colors.black54,
+            fontSize: 12,
+          ),
+        ),
+        // المفتاح (Switch) جهة اليسار
         leading: Switch(
           value: widget.isDarkMode,
-          onChanged: (v) => widget.onThemeChanged(v),
           activeColor: Colors.blue,
+          onChanged: (v) {
+            // استدعاء الدالة الممرة لتغيير الثيم في التطبيق كله
+            widget.onThemeChanged(v);
+          },
         ),
-        trailing: Icon(Icons.palette_outlined, color: Colors.blue),
+        // الأيقونة جهة اليمين
+        trailing: Icon(
+          widget.isDarkMode ? Icons.dark_mode : Icons.light_mode,
+          color: Colors.blue,
+        ),
       ),
     );
   }
-
   Widget _buildSettingTile(String t, String s, IconData i, Color c) {
     return Card(
       elevation: 0,
