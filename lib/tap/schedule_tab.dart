@@ -1,10 +1,4 @@
-
 import 'package:flutter/material.dart';
-import 'package:google_generative_ai/google_generative_ai.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-import 'package:image_picker/image_picker.dart';
-
 import '../core/app_colors.dart';
 import '../core/student_manager.dart';
 
@@ -17,102 +11,105 @@ class ScheduleTab extends StatefulWidget {
 
 class _ScheduleTabState extends State<ScheduleTab> {
   int _selectedDayIndex = 0;
-  bool _isLoading = false;
   final List<String> _days = ["السبت", "الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس"];
 
+  // متحكمات النصوص لإدخال البيانات يدوياً
   final TextEditingController _subjectController = TextEditingController();
   final TextEditingController _doctorController = TextEditingController();
   final TextEditingController _roomController = TextEditingController();
-  final TextEditingController _fromTimeController = TextEditingController();
-  final TextEditingController _toTimeController = TextEditingController();
+  final TextEditingController _timeController = TextEditingController();
 
-  Future<String?> _askForSection() async {
-    String section = "";
-    return showDialog<String>(
+  // دالة لإظهار واجهة إضافة محاضرة جديدة
+  void _showAddManualDialog() {
+    showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("تحديد السيكشن", textAlign: TextAlign.right, style: TextStyle(fontWeight: FontWeight.bold)),
-        content: TextField(
-          textAlign: TextAlign.right,
-          decoration: const InputDecoration(hintText: "مثال: A4", border: OutlineInputBorder()),
-          onChanged: (value) => section = value,
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, null), child: const Text("إلغاء", style: TextStyle(color: Colors.red))),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, section),
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryNavy),
-            child: const Text("ابدأ التحليل", style: TextStyle(color: Colors.white)),
+      builder: (context) => Directionality(
+        textDirection: TextDirection.rtl, // لضمان ظهور المحتوى من اليمين لليسار
+        child: AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text(
+            "إضافة محاضرة جديدة",
+            style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryNavy),
           ),
-        ],
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildTextField(_subjectController, "اسم المادة", Icons.book),
+                _buildTextField(_doctorController, "اسم الدكتور", Icons.person),
+                _buildTextField(_roomController, "القاعة / المدرج", Icons.location_on),
+                _buildTextField(_timeController, "الوقت (مثلاً: 10 ص)", Icons.access_time),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                _clearControllers();
+                Navigator.pop(context);
+              },
+              child: const Text("إلغاء", style: TextStyle(color: Colors.red)),
+            ),
+            ElevatedButton(
+              onPressed: _addLecture,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryNavy,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              child: const Text("حفظ المحاضرة", style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Future<void> _generateSmartSchedule() async {
-    final ImagePicker picker = ImagePicker();
-    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+  // دالة بناء حقل النص في الـ Dialog
+  Widget _buildTextField(TextEditingController controller, String label, IconData icon) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: TextField(
+        controller: controller,
+        decoration: InputDecoration(
+          labelText: label,
+          prefixIcon: Icon(icon, color: AppColors.primaryNavy),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      ),
+    );
+  }
 
-    if (image == null) return;
-
-    String? userSection = await _askForSection();
-    if (userSection == null || userSection.trim().isEmpty) return;
-
-    setState(() => _isLoading = true);
-
-    try {
-      final model = GenerativeModel(
-        model: 'gemini-1.5-flash-8b', // نسخة سريعة جداً ومجانية
-        apiKey: 'AIzaSyAPhhxehmMg-QE5LxnUkSkOtbVwjCXz0MM',
-        httpClient: http.Client(), // يساعد في تخطي بعض قيود الشبكة
-      );
-
-      final imageBytes = await image.readAsBytes();
-
-      final prompt = "أنت مساعد أكاديمي. استخرج جدول سكشن $userSection من الصورة. "
-          "أريد النتيجة بصيغة JSON فقط كقائمة مصفوفات للأيام. "
-          "التنسيق: {'اليوم': [{'subject': '..', 'doctor': '..', 'room': '..', 'time': '..'}]}";
-
-      final response = await model.generateContent([
-        Content.multi([TextPart(prompt), DataPart('image/jpeg', imageBytes)])
-      ]);
-
-      if (response.text == null) throw Exception("رد فارغ");
-
-      String cleanJson = response.text!.trim();
-      if (cleanJson.contains("```json")) {
-        cleanJson = cleanJson.split("```json")[1].split("```")[0];
-      }
-
-      Map<String, dynamic> decodedData = jsonDecode(cleanJson.trim());
-
+  // دالة حفظ البيانات المضافة
+  void _addLecture() {
+    if (_subjectController.text.isNotEmpty) {
+      String currentDay = _days[_selectedDayIndex];
       setState(() {
-        decodedData.forEach((day, lectures) {
-          String normalizedDay = day.trim().replaceAll("أ", "ا");
-          for (String d in _days) {
-            if (d.replaceAll("أ", "ا") == normalizedDay) {
-              for (var lec in lectures) {
-                StudentManager().weeklySchedule[d]!.add(Map<String, String>.from(lec));
-              }
-            }
-          }
+        StudentManager().weeklySchedule[currentDay]!.add({
+          'subject': _subjectController.text,
+          'doctor': _doctorController.text,
+          'room': _roomController.text,
+          'time': _timeController.text,
         });
-        _isLoading = false;
       });
-
-      await StudentManager();
-      _showSnackBar("تم تحليل الجدول بنجاح!", Colors.green);
-
-    } catch (e) {
-      setState(() => _isLoading = false);
-      _showSnackBar("فشل التحليل: تأكد من الإنترنت وجودة الصورة", Colors.red);
-      print("❌ Error: $e");
+      _clearControllers();
+      Navigator.pop(context);
+      _showSnackBar("تمت الإضافة بنجاح لجدول يوم $currentDay", Colors.green);
+    } else {
+      _showSnackBar("يرجى إدخال اسم المادة على الأقل", Colors.orange);
     }
   }
 
-  // --- دوال الواجهة (UI) ---
+  void _clearControllers() {
+    _subjectController.clear();
+    _doctorController.clear();
+    _roomController.clear();
+    _timeController.clear();
+  }
+
   void _showSnackBar(String message, Color color) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message, textAlign: TextAlign.right), backgroundColor: color));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message, textAlign: TextAlign.right), backgroundColor: color),
+    );
   }
 
   @override
@@ -126,13 +123,14 @@ class _ScheduleTabState extends State<ScheduleTab> {
       body: Column(
         children: [
           _buildHeaderWithDays(isDark),
-          _buildActionButtons(isDark),
-          if (_isLoading) const LinearProgressIndicator(color: AppColors.primaryNavy),
+          _buildActionButtons(),
           Expanded(
-            child: ListView.builder(
+            child: currentDayLectures.isEmpty
+                ? _buildEmptyState(isDark)
+                : ListView.builder(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               itemCount: currentDayLectures.length,
-              itemBuilder: (context, index) => _buildScheduleItem(currentDayLectures[index], index, currentDay, isDark),
+              itemBuilder: (context, index) => _buildScheduleItem(currentDayLectures[index], index, isDark),
             ),
           ),
         ],
@@ -153,7 +151,7 @@ class _ScheduleTabState extends State<ScheduleTab> {
           const SizedBox(height: 20),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
-            reverse: true,
+            reverse: true, // لتبدأ القائمة من اليمين
             child: Row(
               children: List.generate(_days.length, (index) {
                 bool isSelected = _selectedDayIndex == index;
@@ -166,7 +164,13 @@ class _ScheduleTabState extends State<ScheduleTab> {
                       color: isSelected ? Colors.white : Colors.white.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(15),
                     ),
-                    child: Text(_days[index], style: TextStyle(color: isSelected ? AppColors.primaryNavy : Colors.white)),
+                    child: Text(
+                      _days[index],
+                      style: TextStyle(
+                        color: isSelected ? AppColors.primaryNavy : Colors.white,
+                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      ),
+                    ),
                   ),
                 );
               }),
@@ -177,42 +181,74 @@ class _ScheduleTabState extends State<ScheduleTab> {
     );
   }
 
-  Widget _buildActionButtons(bool isDark) {
+  Widget _buildActionButtons() {
     return Padding(
       padding: const EdgeInsets.all(16.0),
-      child: Row(
-        children: [
-          Expanded(
-            child: ElevatedButton.icon(
-              onPressed: _generateSmartSchedule,
-              icon: const Icon(Icons.auto_awesome, color: Colors.white),
-              label: const Text("جدول ذكي AI", style: TextStyle(color: Colors.white)),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurple, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-            ),
+      child: SizedBox(
+        width: double.infinity,
+        child: ElevatedButton.icon(
+          onPressed: _showAddManualDialog,
+          icon: const Icon(Icons.add_circle_outline, color: Colors.white),
+          label: const Text("إضافة محاضرة يدوياً", style: TextStyle(color: Colors.white, fontSize: 16)),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primaryNavy,
+            padding: const EdgeInsets.symmetric(vertical: 15),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+            elevation: 5,
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: ElevatedButton.icon(
-              onPressed: () {}, // إضافة يدوية
-              icon: const Icon(Icons.add, color: Colors.white),
-              label: const Text("إضافة يدوية", style: TextStyle(color: Colors.white)),
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryNavy, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-            ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(bool isDark) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.calendar_today_outlined, size: 80, color: Colors.grey.withOpacity(0.5)),
+          const SizedBox(height: 16),
+          Text(
+            "لا توجد محاضرات في هذا اليوم",
+            style: TextStyle(color: isDark ? Colors.white70 : Colors.grey, fontSize: 16),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildScheduleItem(Map<String, String> item, int index, String day, bool isDark) {
+  Widget _buildScheduleItem(Map<String, String> item, int index, bool isDark) {
     return Card(
+      elevation: 2,
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       child: ListTile(
-        title: Text(item['subject'] ?? "", style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryNavy)),
-        subtitle: Text("${item['doctor']} - ${item['room']}"),
-        trailing: Text(item['time'] ?? "", style: const TextStyle(color: Colors.grey)),
-        leading: const Icon(Icons.book, color: AppColors.primaryNavy),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        title: Text(
+          item['subject'] ?? "",
+          style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryNavy, fontSize: 17),
+          textAlign: TextAlign.right,
+        ),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 8.0),
+          child: Text(
+            "${item['doctor']} • ${item['room']}",
+            style: TextStyle(color: isDark ? Colors.white70 : Colors.black54),
+            textAlign: TextAlign.right,
+          ),
+        ),
+        leading: Text(
+          item['time'] ?? "",
+          style: const TextStyle(color: Colors.blueGrey, fontWeight: FontWeight.bold),
+        ),
+        trailing: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: AppColors.primaryNavy.withOpacity(0.1),
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(Icons.book, color: AppColors.primaryNavy),
+        ),
       ),
     );
   }

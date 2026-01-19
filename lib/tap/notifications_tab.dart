@@ -10,36 +10,44 @@ class StudentNotificationsScreen extends StatefulWidget {
 }
 
 class _StudentNotificationsScreenState extends State<StudentNotificationsScreen> {
+  // 1. تعريف الـ Stream كمتغير ثابت لمنع الاختفاء المفاجئ
+  late Stream<QuerySnapshot> _notificationsStream;
+
+  @override
+  void initState() {
+    super.initState();
+    // 2. تهيئة الاتصال بـ Firebase مرة واحدة فقط عند فتح الصفحة
+    _notificationsStream = FirebaseFirestore.instance
+        .collection('notifications')
+        .orderBy('time', descending: true)
+        .snapshots();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF3F6FF),
       appBar: AppBar(
-        title: const Text("الإشعارات والتنبيهات"),
+        title: const Text("الإشعارات والتنبيهات", style: TextStyle(fontWeight: FontWeight.bold)),
         centerTitle: true,
         backgroundColor: const Color(0xFF292F91),
         foregroundColor: Colors.white,
         elevation: 0,
       ),
-      // استخدام StreamBuilder للاتصال الحي بـ Firebase
       body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('notifications') // تأكد أن الاسم مطابق في Firebase
-            .orderBy('time', descending: true) // الأحدث يظهر في الأعلى
-            .snapshots(),
+        stream: _notificationsStream,
         builder: (context, snapshot) {
-          // حالة التحميل
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          // حالة الخطأ
+          // حالة وجود خطأ (مثل Permission Denied)
           if (snapshot.hasError) {
-            return const Center(child: Text("حدث خطأ في جلب البيانات"));
+            return _buildErrorState(snapshot.error.toString());
           }
 
-          // حالة عدم وجود إشعارات
+          // حالة التحميل (تظهر لأول مرة فقط)
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator(color: Color(0xFF292F91)));
+          }
+
+          // حالة عدم وجود بيانات
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
             return _buildEmptyState();
           }
@@ -50,8 +58,10 @@ class _StudentNotificationsScreenState extends State<StudentNotificationsScreen>
             padding: const EdgeInsets.all(15),
             itemCount: notificationsList.length,
             itemBuilder: (context, index) {
-              var data = notificationsList[index].data() as Map<String, dynamic>;
-              return _buildNotificationCard(data);
+              var doc = notificationsList[index];
+              var data = doc.data() as Map<String, dynamic>;
+              // استخدام documentID كـ Key لضمان ثبات العنصر في الذاكرة
+              return _buildNotificationCard(data, ValueKey(doc.id));
             },
           );
         },
@@ -59,17 +69,17 @@ class _StudentNotificationsScreenState extends State<StudentNotificationsScreen>
     );
   }
 
-  Widget _buildNotificationCard(Map<String, dynamic> notification) {
+  Widget _buildNotificationCard(Map<String, dynamic> notification, Key key) {
     Color priorityColor;
     IconData iconData;
 
-    // معالجة الوقت القادم من Firebase
+    // معالجة آمنة للوقت القادم من السيرفر
     DateTime notificationTime = DateTime.now();
-    if (notification['time'] != null) {
+    if (notification['time'] != null && notification['time'] is Timestamp) {
       notificationTime = (notification['time'] as Timestamp).toDate();
     }
 
-    // تحديد اللون بناءً على الأهمية
+    // تحديد اللون والأيقونة بناءً على الأهمية
     switch (notification['priority']) {
       case 'High':
         priorityColor = Colors.red;
@@ -85,6 +95,7 @@ class _StudentNotificationsScreenState extends State<StudentNotificationsScreen>
     }
 
     return Container(
+      key: key, // مهم جداً لمنع اختفاء العنصر
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -97,7 +108,7 @@ class _StudentNotificationsScreenState extends State<StudentNotificationsScreen>
           ),
         ],
         border: notification['priority'] == 'High'
-            ? Border.all(color: Colors.red.withOpacity(0.2), width: 1.5)
+            ? Border.all(color: Colors.red.withOpacity(0.3), width: 1.5)
             : null,
       ),
       child: ListTile(
@@ -122,7 +133,7 @@ class _StudentNotificationsScreenState extends State<StudentNotificationsScreen>
             Text(
               notification['body'] ?? "",
               textAlign: TextAlign.right,
-              style: TextStyle(color: Colors.grey.shade800, height: 1.4),
+              style: TextStyle(color: Colors.grey.shade800, height: 1.4, fontSize: 14),
             ),
             const SizedBox(height: 12),
             Row(
@@ -147,13 +158,29 @@ class _StudentNotificationsScreenState extends State<StudentNotificationsScreen>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.notifications_off_outlined, size: 100, color: Colors.grey.shade300),
+          Icon(Icons.notifications_off_outlined, size: 80, color: Colors.grey.shade300),
           const SizedBox(height: 20),
           const Text(
-            "لا توجد تنبيهات من الدكاترة حالياً",
-            style: TextStyle(color: Colors.grey, fontSize: 18, fontWeight: FontWeight.bold),
+            "لا توجد تنبيهات حالياً",
+            style: TextStyle(color: Colors.grey, fontSize: 16),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState(String error) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, color: Colors.red, size: 50),
+            const SizedBox(height: 10),
+            Text("خطأ في جلب الإشعارات: $error", textAlign: TextAlign.center),
+          ],
+        ),
       ),
     );
   }
