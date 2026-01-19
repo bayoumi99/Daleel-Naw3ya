@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-import '../core/app_colors.dart';
 class AssignmentsTab extends StatefulWidget {
   const AssignmentsTab({super.key});
 
@@ -12,46 +12,33 @@ class _AssignmentsTabState extends State<AssignmentsTab> {
   int _selectedFilterIndex = 0;
   final List<String> _filters = ["الكل", "الحالية", "قيد التنفيذ", "تم التسليم"];
 
-  final List<Map<String, dynamic>> _assignments = [
-    {
-      "id": 1,
-      "title": "مشروع نهائي - تطبيق ويب تفاعلي",
-      "subject": "برمجة الويب",
-      "desc": "تطوير تطبيق ويب كامل باستخدام React و Node.js",
-      "timeLeft": "باقي 4 أيام",
-      "status": "الحالية",
-    },
-    {
-      "id": 2,
-      "title": "تصميم قاعدة بيانات",
-      "subject": "قواعد البيانات",
-      "desc": "تصميم قاعدة بيانات لنظام إدارة مكتبة شامل",
-      "timeLeft": "باقي 9 أيام",
-      "status": "قيد التنفيذ",
-    },
+  // الألوان الأربعة المطلوبة للخلفية
+  final List<Color> _brandColors = [
+    const Color(0xFFD6E6F3), // ICE BLUE
+    const Color(0xFFA6C5D7), // POWDER BLUE
+    const Color(0xFF0F52BA), // SAPPHIRE
+    const Color(0xFF000926), // DEEP NAVY
   ];
 
   @override
   Widget build(BuildContext context) {
-    // تحديد هل الوضع ليلي أم لا بناءً على ثيم الجهاز/التطبيق
     bool isDark = Theme.of(context).brightness == Brightness.dark;
 
-    List<Map<String, dynamic>> filteredList = _assignments.where((item) {
-      if (_selectedFilterIndex == 0) return true;
-      return item['status'] == _filters[_selectedFilterIndex];
-    }).toList();
-
     return Scaffold(
-      // تغيير خلفية السكافولد
       backgroundColor: isDark ? const Color(0xFF121212) : const Color(0xFFF3F6FF),
       body: Column(
         children: [
+          // الـ Header مع التدرج اللوني الرباعي
           Container(
             width: double.infinity,
             padding: const EdgeInsets.only(top: 60, bottom: 25, right: 20, left: 20),
-            decoration: const BoxDecoration(
-              color: AppColors.primaryNavy,
-              borderRadius: BorderRadius.only(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: _brandColors,
+              ),
+              borderRadius: const BorderRadius.only(
                 bottomLeft: Radius.circular(30),
                 bottomRight: Radius.circular(30),
               ),
@@ -71,23 +58,78 @@ class _AssignmentsTabState extends State<AssignmentsTab> {
                   ],
                 ),
                 const SizedBox(height: 35),
-                _buildFilterRow(isDark),
+                _buildFilterRow(),
               ],
             ),
           ),
 
+          // عرض البيانات مع معالجة خطأ Permission Denied
           Expanded(
-            child: filteredList.isEmpty
-                ? Center(
-              child: Text(
-                "لا توجد تكاليف حالياً",
-                style: TextStyle(color: isDark ? Colors.white38 : Colors.grey),
-              ),
-            )
-                : ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              itemCount: filteredList.length,
-              itemBuilder: (context, index) => _buildAssignmentCard(filteredList[index], isDark),
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance.collection('assignments').snapshots(),
+              builder: (context, snapshot) {
+                // 1. حالة التحميل
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                // 2. معالجة الخطأ (حل مشكلة الصورة الأخيرة Permission Denied)
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(20.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.lock_clock, size: 60, color: Colors.amber),
+                          const SizedBox(height: 15),
+                          const Text(
+                            "خطأ في صلاحيات الوصول",
+                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 10),
+                          const Text(
+                            "تأكد من تعديل الـ Rules في Firebase Console لتسمح بالقراءة",
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                          TextButton(
+                            onPressed: () => setState(() {}),
+                            child: const Text("إعادة المحاولة"),
+                          )
+                        ],
+                      ),
+                    ),
+                  );
+                }
+
+                // 3. حالة عدم وجود بيانات
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return _buildEmptyState(isDark);
+                }
+
+                // فلترة البيانات بناءً على التبويب المختار
+                var filteredList = snapshot.data!.docs.where((doc) {
+                  var data = doc.data() as Map<String, dynamic>;
+                  String status = data['status']?.toString() ?? "الحالية";
+                  if (_selectedFilterIndex == 0) return true;
+                  return status == _filters[_selectedFilterIndex];
+                }).toList();
+
+                if (filteredList.isEmpty) {
+                  return Center(child: Text("لا توجد تكاليف ${_filters[_selectedFilterIndex]}"));
+                }
+
+                return ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  itemCount: filteredList.length,
+                  itemBuilder: (context, index) {
+                    var data = filteredList[index].data() as Map<String, dynamic>;
+                    String docId = filteredList[index].id;
+                    return _buildAssignmentCard(data, docId, isDark);
+                  },
+                );
+              },
             ),
           ),
         ],
@@ -95,7 +137,7 @@ class _AssignmentsTabState extends State<AssignmentsTab> {
     );
   }
 
-  Widget _buildFilterRow(bool isDark) {
+  Widget _buildFilterRow() {
     return Directionality(
       textDirection: TextDirection.rtl,
       child: SingleChildScrollView(
@@ -109,15 +151,14 @@ class _AssignmentsTabState extends State<AssignmentsTab> {
                 margin: const EdgeInsets.only(left: 10),
                 padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 10),
                 decoration: BoxDecoration(
-                  color: isSelected ? Colors.white : Colors.white.withOpacity(0.15),
+                  color: isSelected ? Colors.white : Colors.white.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(15),
                 ),
                 child: Text(
                   _filters[index],
                   style: TextStyle(
-                    color: isSelected ? AppColors.primaryNavy : Colors.white,
+                    color: isSelected ? const Color(0xFF0F52BA) : Colors.white,
                     fontWeight: FontWeight.bold,
-                    fontSize: 14,
                   ),
                 ),
               ),
@@ -128,23 +169,18 @@ class _AssignmentsTabState extends State<AssignmentsTab> {
     );
   }
 
-  Widget _buildAssignmentCard(Map<String, dynamic> item, bool isDark) {
-    bool isPending = item['status'] == "قيد التنفيذ";
-    bool isDone = item['status'] == "تم التسليم";
+  Widget _buildAssignmentCard(Map<String, dynamic> item, String docId, bool isDark) {
+    String status = item['status']?.toString() ?? "الحالية";
+    bool isDone = status == "تم التسليم";
+    bool isPending = status == "قيد التنفيذ";
 
     return Container(
       margin: const EdgeInsets.only(bottom: 15),
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        // لون الكارت يتغير للرمادي الغامق في الـ Dark Mode
         color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-              color: Colors.black.withOpacity(isDark ? 0.3 : 0.04),
-              blurRadius: 10
-          )
-        ],
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.end,
@@ -152,94 +188,54 @@ class _AssignmentsTabState extends State<AssignmentsTab> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  // لون التاج (باقي x يوم)
-                  color: isDark ? Colors.blue.withOpacity(0.1) : const Color(0xFFE3F2FD),
-                  borderRadius: BorderRadius.circular(10),
+              _buildBadge(item['timeLeft']?.toString() ?? "غير محدد"),
+              Text(
+                item['title']?.toString() ?? "بدون عنوان",
+                style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: isDark ? Colors.white : const Color(0xFF000926)
                 ),
-                child: Text(
-                    item['timeLeft'],
-                    style: TextStyle(
-                        color: isDark ? Colors.blue.shade200 : Colors.blue,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold
-                    )
-                ),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                      item['title'],
-                      style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                          color: isDark ? Colors.white : AppColors.primaryNavy
-                      )
-                  ),
-                  Text(
-                      item['subject'],
-                      style: TextStyle(color: isDark ? Colors.white54 : Colors.grey, fontSize: 12)
-                  ),
-                ],
               ),
             ],
           ),
+          const SizedBox(height: 8),
+          Text(item['subject']?.toString() ?? "مادة دراسية", style: const TextStyle(color: Colors.grey, fontSize: 12)),
           const SizedBox(height: 12),
           Text(
-              item['desc'],
-              textAlign: TextAlign.right,
-              style: TextStyle(color: isDark ? Colors.white70 : Colors.black54, fontSize: 13)
+            item['desc']?.toString() ?? "لا يوجد وصف لهذا التكليف",
+            textAlign: TextAlign.right,
+            style: TextStyle(color: isDark ? Colors.white70 : Colors.black54, fontSize: 13),
           ),
           const SizedBox(height: 20),
           if (isDone)
-            _buildStatusStatic(
-                "تم التسليم بنجاح",
-                Icons.check_circle,
-                isDark ? Colors.green.withOpacity(0.1) : const Color(0xFFE8F5E9),
-                Colors.green
-            )
+            _buildStaticStatus("تم تسليم هذا التكليف", Icons.check_circle, Colors.green)
           else
             Row(
               children: [
                 Expanded(
-                  child: _buildButton(
-                      "تم التسليم",
-                      Icons.check_circle_outline,
-                      const Color(0xFF2D62ED),
-                      Colors.white,
-                          () => _updateStatus(item['id'], "تم التسليم")
-                  ),
+                  child: _buildButton("تسليم الآن", Icons.upload_file, const Color(0xFF0F52BA), Colors.white,
+                          () => _updateStatus(docId, "تم التسليم")),
                 ),
-                const SizedBox(width: 10),
-                if (!isPending)
+                if (!isPending) ...[
+                  const SizedBox(width: 10),
                   Expanded(
-                    child: _buildButton(
-                        "قيد التنفيذ",
-                        Icons.radio_button_unchecked,
-                        isDark ? Colors.white.withOpacity(0.05) : const Color(0xFFF1F5F9),
-                        isDark ? Colors.blue.shade200 : const Color(0xFF2D62ED),
-                            () => _updateStatus(item['id'], "قيد التنفيذ")
-                    ),
+                    child: _buildButton("بدء العمل", Icons.play_arrow_outlined, Colors.grey.shade100, Colors.black87,
+                            () => _updateStatus(docId, "قيد التنفيذ")),
                   ),
+                ]
               ],
             ),
-          const SizedBox(height: 12),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-                "رابط الواجب ←",
-                style: TextStyle(
-                    color: isDark ? Colors.blue.shade300 : const Color(0xFF2D62ED),
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold
-                )
-            ),
-          ),
         ],
       ),
+    );
+  }
+
+  Widget _buildBadge(String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(color: const Color(0xFF0F52BA).withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+      child: Text(text, style: const TextStyle(color: Color(0xFF0F52BA), fontSize: 11, fontWeight: FontWeight.bold)),
     );
   }
 
@@ -252,7 +248,7 @@ class _AssignmentsTabState extends State<AssignmentsTab> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(label, style: TextStyle(color: text, fontWeight: FontWeight.bold, fontSize: 14)),
+            Text(label, style: TextStyle(color: text, fontWeight: FontWeight.bold)),
             const SizedBox(width: 6),
             Icon(icon, color: text, size: 18),
           ],
@@ -261,11 +257,11 @@ class _AssignmentsTabState extends State<AssignmentsTab> {
     );
   }
 
-  Widget _buildStatusStatic(String text, IconData icon, Color bg, Color color) {
+  Widget _buildStaticStatus(String text, IconData icon, Color color) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(15)),
+      decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -277,9 +273,20 @@ class _AssignmentsTabState extends State<AssignmentsTab> {
     );
   }
 
-  void _updateStatus(int id, String newStatus) {
-    setState(() {
-      _assignments.firstWhere((e) => e['id'] == id)['status'] = newStatus;
-    });
+  Widget _buildEmptyState(bool isDark) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.assignment_turned_in_outlined, size: 70, color: Colors.grey.withOpacity(0.5)),
+          const SizedBox(height: 10),
+          Text("لا يوجد تكاليف في هذا القسم", style: TextStyle(color: isDark ? Colors.white54 : Colors.grey)),
+        ],
+      ),
+    );
+  }
+
+  void _updateStatus(String docId, String newStatus) {
+    FirebaseFirestore.instance.collection('assignments').doc(docId).update({'status': newStatus});
   }
 }

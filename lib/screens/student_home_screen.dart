@@ -6,6 +6,7 @@ import 'package:persistent_bottom_nav_bar/persistent_bottom_nav_bar.dart';
 
 import '../core/app_colors.dart';
 import '../core/student_manager.dart';
+import '../tap/exams_tab.dart';
 import '../tap/profile_tab.dart';
 import '../tap/schedule_tab.dart';
 import '../tap/tasks_tab.dart';
@@ -174,7 +175,14 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                     ElevatedButton(
                       onPressed: () {},
                       style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-                      child: const Text("دخول", style: TextStyle(color: Colors.white)),
+                      child:  InkWell(
+                          onTap: () {
+                            Navigator.push(context, MaterialPageRoute(builder: (context) => StudentQuizScreen(
+                              quizData: quiz['questions'],
+                              durationMinutes: quiz['duration'],
+                            )));
+                          },
+                          child: Text("دخول", style: TextStyle(color: Colors.white))),
                     ),
                     const Spacer(),
                     Column(

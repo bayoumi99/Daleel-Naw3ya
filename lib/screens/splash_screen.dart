@@ -16,10 +16,14 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
+    // إزالة السبلش سكرين الأصلية الخاصة بالنظام
     FlutterNativeSplash.remove();
 
+    // الانتقال لصفحة الانترو بعد 6 ثواني
     Future.delayed(const Duration(seconds: 6), () {
-      if (mounted) Navigator.pushReplacementNamed(context, IntroScreen.routeName);
+      if (mounted) {
+        Navigator.pushReplacementNamed(context, IntroScreen.routeName);
+      }
     });
   }
 
@@ -36,18 +40,19 @@ class _SplashScreenState extends State<SplashScreen> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Color(0xFF0D1B8E), // اللون الكحلي العميق
-              Color(0xFF1B4B91), // درجة وسيطة لضمان نعومة التدرج
-              Color(0xFF5BAED4), // تم تغميق اللون الفاتح قليلاً (بدلاً من 75C8F1)
+              Color(0xFFD6E6F3), // ICE BLUE
+              Color(0xFFA6C5D7), // POWDER BLUE
+              Color(0xFF0F52BA), // SAPPHIRE
+              Color(0xFF000926), // DARK NAVY
             ],
-            // ضبط الـ stops لتوزيع اللون الغامق على مساحة أكبر
-            stops: [0.0, 0.6, 1.0],
+            // توزيع الألوان بالتساوي على طول الصفحة
+            stops: [0.0, 0.35, 0.7, 1.0],
           ),
         ),
         child: Stack(
           alignment: Alignment.center,
           children: [
-            // اللوجو الرئيسي في المنتصف
+            // اللوجو الرئيسي مع حركة دخول من الأعلى
             FadeInDown(
               duration: const Duration(milliseconds: 1500),
               child: Image.asset(
@@ -56,7 +61,7 @@ class _SplashScreenState extends State<SplashScreen> {
               ),
             ),
 
-            // صورة المطور في الأسفل
+            // صورة المطور/الشركة في الأسفل مع حركة دخول من الأسفل
             Positioned(
               bottom: size.height * 0.04,
               child: FadeInUp(
