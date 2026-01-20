@@ -49,6 +49,9 @@ dependencies:
   firebase_auth:
   cloud_firestore:
   firebase_messaging:
+  flutter_local_notifications:
+  firebase_notifications_handler:
+  flutter_fcm:
 
 dev_dependencies:
   flutter_test:

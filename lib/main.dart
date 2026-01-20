@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart'; // نحتاجها لجلب بيانات المستخدم
+import 'package:firebase_auth/firebase_auth.dart'; // نحتاجها لفحص الجلسة
 import 'package:daleel_naw3ya/screens/login_screen.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
@@ -25,10 +27,8 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  // جعل الوضع الافتراضي متوافق مع ثيم الجهاز أو فاتح
   ThemeMode _themeMode = ThemeMode.light;
 
-  // الدالة الأساسية لتغيير الثيم
   void _toggleTheme(bool isDark) {
     setState(() {
       _themeMode = isDark ? ThemeMode.dark : ThemeMode.light;
@@ -41,8 +41,6 @@ class _MyAppState extends State<MyApp> {
       debugShowCheckedModeBanner: false,
       title: 'دليل نوعية',
       themeMode: _themeMode,
-
-      // إعدادات الثيم الفاتح
       theme: ThemeData(
         useMaterial3: true,
         fontFamily: 'Cairo',
@@ -51,8 +49,6 @@ class _MyAppState extends State<MyApp> {
         primaryColor: const Color(0xFF292F91),
         appBarTheme: const AppBarTheme(backgroundColor: Color(0xFF292F91)),
       ),
-
-      // إعدادات الثيم الغامق
       darkTheme: ThemeData(
         useMaterial3: true,
         fontFamily: 'Cairo',
@@ -62,6 +58,7 @@ class _MyAppState extends State<MyApp> {
         appBarTheme: const AppBarTheme(backgroundColor: Color(0xFF1E1E1E)),
       ),
 
+      // نبدأ بـ SplashScreen كالعادة
       initialRoute: SplashScreen.routeName,
 
       onGenerateRoute: (settings) {
@@ -70,16 +67,20 @@ class _MyAppState extends State<MyApp> {
         if (settings.name == SplashScreen.routeName) {
           return MaterialPageRoute(builder: (context) => const SplashScreen());
         }
+
+        // الشاشة الوسيطة بعد السبلاتش لتقرير أين يذهب المستخدم
+        if (settings.name == 'auth_check') {
+          return MaterialPageRoute(builder: (context) => AuthWrapper(onThemeChanged: _toggleTheme, isDark: isDark));
+        }
+
         if (settings.name == IntroScreen.routeName) {
           return MaterialPageRoute(builder: (context) => const IntroScreen());
         }
 
-        // مسار تسجيل الدخول (مهم لعمل زر الخروج)
-        if (settings.name == '/login' || settings.name == DynamicSignupScreen.routeName) {
+        if (settings.name == '/login' || settings.name == "DynamicSignupScreen") {
           return MaterialPageRoute(builder: (context) => const DynamicSignupScreen());
         }
 
-        // مسار الطالب المحدث
         if (settings.name == '/home') {
           return MaterialPageRoute(
             builder: (context) => StudentHomeScreen(
@@ -89,7 +90,6 @@ class _MyAppState extends State<MyApp> {
           );
         }
 
-        // مسار الدكتور المحدث (تم ربط الدالة هنا)
         if (settings.name == StaffHomeScreen.routeName) {
           final args = settings.arguments as Map<String, dynamic>?;
           return MaterialPageRoute(
@@ -97,12 +97,66 @@ class _MyAppState extends State<MyApp> {
               doctorName: args?['doctorName'] ?? "دكتور",
               department: args?['department'] ?? "عام",
               isDarkMode: isDark,
-              onThemeChanged: _toggleTheme, // تم التعديل: ربط الدالة الحقيقية
+              onThemeChanged: _toggleTheme,
             ),
           );
         }
 
         return MaterialPageRoute(builder: (context) => const SplashScreen());
+      },
+    );
+  }
+}
+
+// الكلاس المسؤول عن فحص تسجيل الدخول وتوجيه المستخدم تلقائياً
+class AuthWrapper extends StatelessWidget {
+  final Function(bool) onThemeChanged;
+  final bool isDark;
+  const AuthWrapper({super.key, required this.onThemeChanged, required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    // مراقبة حالة المستخدم (هل هو مسجل دخول أم لا؟)
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(),
+      builder: (context, snapshot) {
+        // إذا كان الاتصال مازال جارياً
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+        }
+
+        // إذا وجدنا مستخدم مسجل (يتم التوجه لجلب بياناته من Firestore)
+        if (snapshot.hasData) {
+          return FutureBuilder<DocumentSnapshot>(
+            future: FirebaseFirestore.instance.collection('Users').doc(snapshot.data!.uid).get(),
+            builder: (context, userSnapshot) {
+              if (userSnapshot.connectionState == ConnectionState.waiting) {
+                return const Scaffold(body: Center(child: CircularProgressIndicator()));
+              }
+
+              if (userSnapshot.hasData && userSnapshot.data!.exists) {
+                var data = userSnapshot.data!.data() as Map<String, dynamic>;
+                String role = data['role'] ?? 'student';
+
+                if (role == 'student') {
+                  return StudentHomeScreen(isDarkMode: isDark, onThemeChanged: onThemeChanged);
+                } else {
+                  return StaffHomeScreen(
+                    doctorName: data['name'] ?? 'دكتور',
+                    department: data['department'] ?? 'عام',
+                    isDarkMode: isDark,
+                    onThemeChanged: onThemeChanged,
+                  );
+                }
+              }
+              // إذا لم نجد بيانات المستخدم في Firestore نرجعه للتسجيل
+              return const DynamicSignupScreen();
+            },
+          );
+        }
+
+        // إذا لم يكن مسجلاً، يذهب لشاشة الإنترو أو التسجيل
+        return const IntroScreen();
       },
     );
   }

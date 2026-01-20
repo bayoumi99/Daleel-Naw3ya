@@ -3,6 +3,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../core/app_colors.dart';
 import '../core/student_manager.dart';
+import '../screens/about_Us_screen.dart';
+
+// تأكد من إنشاء هذا الملف أو وضع كلاس AboutUsScreen فيه
+// import 'about_us_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final Function(bool) onThemeChanged;
@@ -30,7 +34,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _fetchUserData();
   }
 
-  // جلب البيانات من Firebase
   Future<void> _fetchUserData() async {
     if (!mounted) return;
     try {
@@ -49,14 +52,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         if (mounted) {
           setState(() {
             userData = doc.data() as Map<String, dynamic>;
-
-            // تحديث بيانات المنيجر لضمان مزامنة التطبيق
             StudentManager().name = userData!['name'] ?? "طالب";
             StudentManager().code = userData!['code'] ?? "000000";
             StudentManager().level = userData!['year'] ?? "";
             StudentManager().dept = userData!['department'] ?? "";
             StudentManager().specialty = userData!['specialty'] ?? "";
-
             _isLoading = false;
           });
         }
@@ -69,7 +69,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  // دالة الترفيع
   Future<void> _upgradeLevelInFirebase() async {
     String currentLevel = userData?['year'] ?? "";
     String nextLevel = "";
@@ -98,7 +97,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  // حوار اختيار التخصص (معدل لمنع التعليق)
   void _showSpecialtyDialog(String uid) {
     showDialog(
       context: context,
@@ -120,31 +118,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // زر اختيار التخصص داخل الحوار (معدل)
   Widget _buildSpecialtyOption(String uid, String specialtyName) {
     return ListTile(
       title: Text(specialtyName, textAlign: TextAlign.right),
       onTap: () async {
-        // 1. إغلاق الحوار أولاً
         Navigator.of(context, rootNavigator: true).pop();
-
         try {
           setState(() => _isLoading = true);
-
-          // 2. تحديث التخصص
           await FirebaseFirestore.instance.collection('Users').doc(uid).update({
             'specialty': specialtyName,
           });
-
-          // 3. تحديث البيانات محلياً
           await _fetchUserData();
           widget.onDataChanged();
-
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text("تم اختيار تخصص $specialtyName بنجاح"), backgroundColor: Colors.green),
-            );
-          }
         } catch (e) {
           debugPrint("خطأ: $e");
           if (mounted) setState(() => _isLoading = false);
@@ -165,7 +150,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             onPressed: () async {
               await FirebaseAuth.instance.signOut();
               if (mounted) {
-                // تأكد من وجود مسار باسم /login في ملف main.dart
                 Navigator.of(context, rootNavigator: true).pushNamedAndRemoveUntil('/login', (route) => false);
               }
             },
@@ -196,6 +180,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     _buildUpgradeSection(),
                     const SizedBox(height: 20),
                     _buildThemeSwitchTile(),
+                    const SizedBox(height: 10),
                     _buildSettingTile(
                         "المعلومات الأكاديمية",
                         "${userData?['department'] ?? ''}${userData?['specialty'] != null && userData?['specialty'] != '' && userData?['specialty'] != 'عام' ? ' - ${userData?['specialty']}' : ''}",
@@ -203,6 +188,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         Colors.green
                     ),
                     const SizedBox(height: 10),
+
+                    // زر About Us الجديد (بعرض الصفحة)
+                    _buildAboutUsTile(context),
+
+                    const SizedBox(height: 20),
                     _buildLogoutTile(),
                   ],
                 ),
@@ -210,6 +200,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  // دالة زر About Us المصمم ليكون Tile بعرض الصفحة
+  Widget _buildAboutUsTile(BuildContext context) {
+    return Card(
+      elevation: 0,
+      color: widget.isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: widget.isDarkMode ? Colors.white10 : Colors.grey.shade200)
+      ),
+      child: ListTile(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const AboutUsScreen()),
+          );
+        },
+        title: const Text(
+          "عن التطبيق",
+          textAlign: TextAlign.right,
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        subtitle: const Text(
+          "تعرف على فريق التطوير وإصدار البرنامج",
+          textAlign: TextAlign.right,
+          style: TextStyle(fontSize: 12),
+        ),
+        trailing: const Icon(Icons.info_outline, color: AppColors.primaryNavy),
+        leading: const Icon(Icons.arrow_back_ios_new, size: 16, color: Colors.grey),
       ),
     );
   }
@@ -240,7 +262,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(15)),
-                  child: const Icon(Icons.person_pin_rounded, color: Colors.white, size: 35),
+                  child: const Icon(Icons.person_2_outlined, color: Colors.white, size: 35),
                 ),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
@@ -295,49 +317,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildThemeSwitchTile() {
     return Card(
       elevation: 0,
-      // تغيير لون الكارت بناءً على الوضع
       color: widget.isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
       shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
-          side: BorderSide(
-            color: widget.isDarkMode ? Colors.white10 : Colors.grey.shade200,
-          )),
+          side: BorderSide(color: widget.isDarkMode ? Colors.white10 : Colors.grey.shade200)),
       child: ListTile(
-        // النصوص
-        title: Text(
-          "المظهر",
-          textAlign: TextAlign.right,
-          style: TextStyle(
-            color: widget.isDarkMode ? Colors.white : Colors.black,
-            fontWeight: FontWeight.bold,
-            fontSize: 14,
-          ),
-        ),
-        subtitle: Text(
-          widget.isDarkMode ? "الوضع الليلي" : "الوضع الفاتح",
-          textAlign: TextAlign.right,
-          style: TextStyle(
-            color: widget.isDarkMode ? Colors.white54 : Colors.black54,
-            fontSize: 12,
-          ),
-        ),
-        // المفتاح (Switch) جهة اليسار
-        leading: Switch(
-          value: widget.isDarkMode,
-          activeColor: Colors.blue,
-          onChanged: (v) {
-            // استدعاء الدالة الممرة لتغيير الثيم في التطبيق كله
-            widget.onThemeChanged(v);
-          },
-        ),
-        // الأيقونة جهة اليمين
-        trailing: Icon(
-          widget.isDarkMode ? Icons.dark_mode : Icons.light_mode,
-          color: Colors.blue,
-        ),
+        title: Text("المظهر", textAlign: TextAlign.right, style: TextStyle(color: widget.isDarkMode ? Colors.white : Colors.black, fontWeight: FontWeight.bold, fontSize: 14)),
+        subtitle: Text(widget.isDarkMode ? "الوضع الليلي" : "الوضع الفاتح", textAlign: TextAlign.right, style: TextStyle(color: widget.isDarkMode ? Colors.white54 : Colors.black54, fontSize: 12)),
+        leading: Switch(value: widget.isDarkMode, activeColor: Colors.blue, onChanged: (v) => widget.onThemeChanged(v)),
+        trailing: Icon(widget.isDarkMode ? Icons.dark_mode : Icons.light_mode, color: Colors.blue),
       ),
     );
   }
+
   Widget _buildSettingTile(String t, String s, IconData i, Color c) {
     return Card(
       elevation: 0,

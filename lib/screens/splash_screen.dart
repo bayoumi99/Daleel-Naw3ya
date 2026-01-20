@@ -2,6 +2,7 @@ import 'package:animate_do/animate_do.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 
+// ملاحظة: لا حاجة لعمل استيراد لصفحة الـ Intro هنا لأننا سنستخدم Routes
 import 'Intro_Screen.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -19,10 +20,11 @@ class _SplashScreenState extends State<SplashScreen> {
     // إزالة السبلش سكرين الأصلية الخاصة بالنظام
     FlutterNativeSplash.remove();
 
-    // الانتقال لصفحة الانترو بعد 6 ثواني
-    Future.delayed(const Duration(seconds: 6), () {
+    // التعديل الجوهري: التوجه لـ auth_check بدلاً من IntroScreen
+    Future.delayed(const Duration(seconds: 4), () { // قللنا الوقت قليلاً لـ 4 ثواني لتجربة مستخدم أسرع
       if (mounted) {
-        Navigator.pushReplacementNamed(context, IntroScreen.routeName);
+        // ننتقل للمسار الوسيط الذي فحص حالة المستخدم في ملف main.dart
+        Navigator.pushReplacementNamed(context, 'auth_check');
       }
     });
   }
@@ -45,14 +47,13 @@ class _SplashScreenState extends State<SplashScreen> {
               Color(0xFF0F52BA), // SAPPHIRE
               Color(0xFF000926), // DARK NAVY
             ],
-            // توزيع الألوان بالتساوي على طول الصفحة
             stops: [0.0, 0.35, 0.7, 1.0],
           ),
         ),
         child: Stack(
           alignment: Alignment.center,
           children: [
-            // اللوجو الرئيسي مع حركة دخول من الأعلى
+            // اللوجو الرئيسي
             FadeInDown(
               duration: const Duration(milliseconds: 1500),
               child: Image.asset(
@@ -61,7 +62,19 @@ class _SplashScreenState extends State<SplashScreen> {
               ),
             ),
 
-            // صورة المطور/الشركة في الأسفل مع حركة دخول من الأسفل
+            // مؤشر تحميل بسيط ليعرف المستخدم أن التطبيق يفحص البيانات
+            Positioned(
+              bottom: size.height * 0.15,
+              child: FadeIn(
+                delay: const Duration(milliseconds: 2000),
+                child: const CircularProgressIndicator(
+                  color: Colors.white70,
+                  strokeWidth: 2,
+                ),
+              ),
+            ),
+
+            // صورة المطور/الشركة
             Positioned(
               bottom: size.height * 0.04,
               child: FadeInUp(

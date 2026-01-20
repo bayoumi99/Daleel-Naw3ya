@@ -3,6 +3,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/app_colors.dart';
+import '../about_Us_screen.dart';
+// تأكد من استيراد الصفحة هنا
+// import '../profile_screen.dart'; // أو المكان الذي وضعت فيه AboutUsScreen
 
 class StaffProfileScreen extends StatefulWidget {
   static const routeName = '/Staff_Profile';
@@ -11,7 +14,7 @@ class StaffProfileScreen extends StatefulWidget {
   final bool isDarkMode;
   final String doctorName;
   final String department;
-  final VoidCallback onDataChanged; // تم تغيير النوع من Null Function إلى VoidCallback
+  final VoidCallback onDataChanged;
 
   const StaffProfileScreen({
     super.key,
@@ -36,7 +39,6 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
     _fetchDoctorData();
   }
 
-  // جلب بيانات الدكتور من Firebase
   Future<void> _fetchDoctorData() async {
     try {
       User? user = FirebaseAuth.instance.currentUser;
@@ -70,7 +72,7 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
       appBar: AppBar(
         backgroundColor: AppColors.primaryNavy,
         elevation: 0,
-        title: const Text("الملف الشخصي", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: const Text("الملف الشخصي", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontFamily: 'Cairo')),
         centerTitle: true,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
@@ -104,6 +106,11 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
                       doctorData?['email'] ?? "غير متوفر",
                       Icons.email_outlined,
                       Colors.green),
+
+                  const SizedBox(height: 10),
+                  // زر About Us الجديد الخاص بالدكاترة
+                  _buildAboutUsTile(context),
+
                   const SizedBox(height: 30),
                   _buildLogoutTile(),
                 ],
@@ -111,6 +118,39 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  // ويدجت زر About Us
+  Widget _buildAboutUsTile(BuildContext context) {
+    return Card(
+      elevation: 0,
+      color: widget.isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: widget.isDarkMode ? Colors.white10 : Colors.grey.shade200)
+      ),
+      child: ListTile(
+        onTap: () {
+          // تأكد من أن AboutUsScreen موجودة في ملف Profile الخاص بالطلاب أو ملف مستقل
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const AboutUsScreen()),
+          );
+        },
+        title: const Text(
+          "عن التطبيق",
+          textAlign: TextAlign.right,
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+        ),
+        subtitle: const Text(
+          "تعرف على فريق التطوير وإصدار البرنامج",
+          textAlign: TextAlign.right,
+          style: TextStyle(fontSize: 12),
+        ),
+        trailing: const Icon(Icons.info_outline, color: AppColors.primaryNavy),
+        leading: const Icon(Icons.arrow_back_ios_new, size: 16, color: Colors.grey),
       ),
     );
   }
@@ -185,7 +225,7 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
             activeColor: Colors.blue,
             value: widget.isDarkMode,
             onChanged: (val) {
-              widget.onThemeChanged(val); // تفعيل تغيير الثيم
+              widget.onThemeChanged(val);
             }),
       ),
     );
@@ -238,7 +278,6 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
             onPressed: () async {
               await FirebaseAuth.instance.signOut();
               if (mounted) {
-                // تأكد من أن اسم المسار مطابق لصفحة الدخول عندك في main.dart
                 Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
               }
             },
@@ -249,3 +288,4 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
     );
   }
 }
+
