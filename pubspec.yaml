@@ -12,10 +12,10 @@ dependencies:
     sdk: flutter
 
   cupertino_icons: ^1.0.8
-  flutter_native_splash:
-  icons_launcher:
-  flutter_bloc:
-  icons_plus:
+  flutter_native_splash: ^2.4.0 # تأكد من وجود الإصدار
+  icons_launcher: ^3.0.0
+  flutter_bloc: any
+  icons_plus: any
   flutter_localizations:
     sdk: flutter
   intl: any
@@ -23,21 +23,21 @@ dependencies:
   google_fonts: ^6.2.1
   dots_indicator: ^4.0.1
   cached_network_image: ^3.4.1
-  bloc:
-  retrofit:
-  json_annotation:
-  dio:
-  pretty_dio_logger:
+  bloc: any
+  retrofit: any
+  json_annotation: any
+  dio: any
+  pretty_dio_logger: any
   cherry_toast: ^1.13.0
-  get_it:
-  animate_do:
-  injectable:
-  shared_preferences:
+  get_it: any
+  animate_do: any
+  injectable: any
+  shared_preferences: any
   shimmer: ^3.0.0
-  animated_bottom_navigation_bar:
-  cached_video_player_plus:
-  maps_launcher:
-  card_animation_hover:
+  animated_bottom_navigation_bar: any
+  cached_video_player_plus: any
+  maps_launcher: any
+  card_animation_hover: any
   introduction_screen: ^4.0.0
   persistent_bottom_nav_bar: ^6.2.1
   flutter_login: ^6.0.0
@@ -45,21 +45,21 @@ dependencies:
   google_generative_ai: 0.4.0
   http: ^1.1.0
   url_launcher: ^6.3.1
-  firebase_core:
-  firebase_auth:
-  cloud_firestore:
-  firebase_messaging:
-  flutter_local_notifications:
-  firebase_notifications_handler:
-  flutter_fcm:
+  firebase_core: any
+  firebase_auth: any
+  cloud_firestore: any
+  firebase_messaging: any
+  flutter_local_notifications: any
+  firebase_notifications_handler: any
+  flutter_fcm: any
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  retrofit_generator:
-  build_runner:
-  injectable_generator:
-  json_serializable:
+  retrofit_generator: any
+  build_runner: any
+  injectable_generator: any
+  json_serializable: any
   flutter_lints: ^5.0.0
 
 flutter:
@@ -75,3 +75,23 @@ flutter:
 
   assets:
     - lib/assets/images/
+
+# --- إعدادات أيقونة التطبيق (App Icon) ---
+icons_launcher:
+  image_path: "lib/assets/images/codeare.png"
+  platforms:
+    android:
+      enable: true
+      image_path: "lib/assets/images/codeare.png"
+    ios:
+      enable: true
+      image_path: "lib/assets/images/codeare.png"
+
+# --- إعدادات شاشة البداية (Splash Screen) ---
+flutter_native_splash:
+  color: "#292F91" # لون الخلفية (نفس لون الأب بار بتاعك)
+  image: "lib/assets/images/codeare.png"
+  android_12:
+    image: "lib/assets/images/codeare.png"
+    color: "#292F91"
+  fullscreen: true

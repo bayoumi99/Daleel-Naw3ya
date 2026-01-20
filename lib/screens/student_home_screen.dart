@@ -25,7 +25,6 @@ class StudentHomeScreen extends StatefulWidget {
 class _StudentHomeScreenState extends State<StudentHomeScreen> {
   late PersistentTabController _controller;
 
-  // متغيرات جلب البيانات
   Map<String, dynamic>? userData;
   bool _isFetching = true;
 
@@ -33,10 +32,9 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
   void initState() {
     super.initState();
     _controller = PersistentTabController(initialIndex: 3);
-    _getUserData(); // جلب بيانات الطالب عند فتح التطبيق
+    _getUserData();
   }
 
-  // دالة جلب بيانات الطالب من Firestore
   Future<void> _getUserData() async {
     try {
       User? user = FirebaseAuth.instance.currentUser;
@@ -47,20 +45,21 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
             .get();
 
         if (doc.exists) {
-          setState(() {
-            userData = doc.data() as Map<String, dynamic>;
-            _isFetching = false;
+          if (mounted) {
+            setState(() {
+              userData = doc.data() as Map<String, dynamic>;
+              _isFetching = false;
 
-            // تحديث كلاس المنيجر بالبيانات الحقيقية ليتم استخدامها في الجداول
-            StudentManager().name = userData!['name'] ?? "";
-            StudentManager().level = userData!['year'] ?? "";
-            StudentManager().dept = userData!['department'] ?? "";
-          });
+              StudentManager().name = userData!['name'] ?? "";
+              StudentManager().level = userData!['year'] ?? "";
+              StudentManager().dept = userData!['department'] ?? "";
+            });
+          }
         }
       }
     } catch (e) {
       debugPrint("خطأ في جلب البيانات: $e");
-      setState(() => _isFetching = false);
+      if (mounted) setState(() => _isFetching = false);
     }
   }
 
@@ -87,7 +86,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
       backgroundColor: widget.isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
       navBarStyle: NavBarStyle.style7,
       onItemSelected: (index) {
-        if (index == 3) refresh(); // تحديث البيانات عند العودة للرئيسية
+        if (index == 3) refresh();
       },
     );
   }
@@ -98,9 +97,6 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
       backgroundColor: widget.isDarkMode ? const Color(0xFF121212) : const Color(0xFFF3F6FF),
       appBar: AppBar(
         title: const Text("التنبيهات", style: TextStyle(fontWeight: FontWeight.bold)),
-        centerTitle: true,
-        backgroundColor: widget.isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
-        foregroundColor: widget.isDarkMode ? Colors.white : Colors.black,
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
@@ -142,9 +138,6 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
       backgroundColor: widget.isDarkMode ? const Color(0xFF121212) : const Color(0xFFF3F6FF),
       appBar: AppBar(
         title: const Text("الاختبارات المتاحة", style: TextStyle(fontWeight: FontWeight.bold)),
-        centerTitle: true,
-        backgroundColor: widget.isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
-        foregroundColor: widget.isDarkMode ? Colors.white : Colors.black,
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
@@ -167,22 +160,19 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                 decoration: BoxDecoration(
                   color: widget.isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
                   borderRadius: BorderRadius.circular(20),
-                  border: const Border(right: BorderSide(color: Colors.orange, width: 6)),
-                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
+                  border: const Border(right: BorderSide(color: AppColors.primaryNavy, width: 6)),
                 ),
                 child: Row(
                   children: [
                     ElevatedButton(
-                      onPressed: () {},
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-                      child:  InkWell(
-                          onTap: () {
-                            Navigator.push(context, MaterialPageRoute(builder: (context) => StudentQuizScreen(
-                              quizData: quiz['questions'],
-                              durationMinutes: quiz['duration'],
-                            )));
-                          },
-                          child: Text("دخول", style: TextStyle(color: Colors.white))),
+                      onPressed: () {
+                        Navigator.push(context, MaterialPageRoute(builder: (context) => StudentQuizScreen(
+                          quizData: quiz['questions'],
+                          durationMinutes: quiz['duration'],
+                        )));
+                      },
+                      style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryNavy),
+                      child: const Text("دخول", style: TextStyle(color: Colors.white)),
                     ),
                     const Spacer(),
                     Column(
@@ -244,12 +234,19 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                       ],
                     ),
                     const SizedBox(height: 25),
+
+                    // --- المربعات الثلاثة الديناميكية ---
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
+                        // 1. محاضرات اليوم (من Manager)
                         _buildStatCard("محاضرات اليوم", todayLectures.length.toString()),
-                        _buildStatCard("الواجبات", "3"),
-                        _buildStatCard("الاختبارات", "2"),
+
+                        // 2. الواجبات (Stream من Firestore)
+                        _buildDynamicStatCard("Assignments", "الواجبات"),
+
+                        // 3. الاختبارات (Stream من Firestore)
+                        _buildDynamicStatCard("Quizzes", "الاختبارات"),
                       ],
                     ),
                   ],
@@ -279,7 +276,34 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     );
   }
 
-  // --- الدوال المساعدة ---
+  // دالة لجلب الأعداد حية من Firestore للمربعات
+  Widget _buildDynamicStatCard(String collection, String label) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection(collection)
+          .where('level', isEqualTo: userData?['year'])
+          .snapshots(),
+      builder: (context, snapshot) {
+        String count = "0";
+        if (snapshot.hasData) {
+          count = snapshot.data!.docs.length.toString();
+        }
+        return _buildStatCard(label, count);
+      },
+    );
+  }
+
+  // --- الدوال المساعدة للتنسيق ---
+  Widget _buildStatCard(String title, String count) {
+    return Container(
+      width: 95, padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(15)),
+      child: Column(children: [
+        Text(count, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+        Text(title, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 9)),
+      ]),
+    );
+  }
 
   Widget _buildEmptyStateCustom(String message) {
     return Center(child: Text(message, style: const TextStyle(color: Colors.grey)));
@@ -368,17 +392,6 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildStatCard(String title, String count) {
-    return Container(
-      width: 95, padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(15)),
-      child: Column(children: [
-        Text(count, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-        Text(title, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 9)),
-      ]),
     );
   }
 
